@@ -4,6 +4,8 @@
 // → Confidence Gate & Multi-Intent Check → Generate (real LLM) → Cite
 // ============================================================
 
+const { inspectUserContent, PROMPT_INJECTION_RE } = require('./contentSafety');
+const { isEmergency, EMERGENCY_REPLY } = require('./emergency');
 const classifier   = require('../ml/classifier');
 const { engine: kbEngine } = require('../ml/embeddings');
 const { analyzeMessage, isGreetingOrGeneralInquiry } = require('../ml/sentiment');
@@ -53,7 +55,7 @@ function detectCrossDepartmentIntents(text) {
 const WORKPLACE_CONTEXT_RE = /\b(work|workplace|office|company|employee|coworker|colleague|manager|supervisor|team|client|customer|corporate|policy|support|ticket|request|approval|harass(?:ment|ed|ing)?|discrimination|unwanted|assault|report|complaint)\b/i;
 const PERSONAL_SEXUAL_RE = /\b(?:i\s*(?:am|'m)\s+horny|turn\s+me\s+on|sext(?:ing)?|send\s+(?:me\s+)?nudes?|sexual\s+chat|want\s+sex|porn(?:ography)?)\b/i;
 const CASUAL_NON_WORK_RE = /^(?:ok(?:ay)?|k|cool|lol|lmao|thanks?|thank\s+you|good\s*(?:morning|afternoon|evening|night)|bye|goodbye|tell\s+me\s+(?:a\s+)?joke|i\s*(?:am|'m)\s+bored)[.!?\s]*$/i;
-const UNRELATED_TOPIC_RE = /\b(?:weather|sports?\s+score|cricket\s+score|football\s+score|movie\s+recommendation|dating\s+advice|recipe|horoscope)\b/i;
+const UNRELATED_TOPIC_RE = /\b(?:pizza|weather|sports?\s+score|cricket\s+score|football\s+score|movie\s+recommendation|dating\s+advice|recipe|horoscope)\b/i;
 
 function hasWorkplaceSignal(text) {
   if (WORKPLACE_CONTEXT_RE.test(text)) return true;
@@ -109,7 +111,7 @@ function containsOffensive(text) { return OFFENSIVE_RE.test(text); }
 
 // ─── Prompt Injection Guard ────────────────────────────────────
 const INJECTION_RE = /ignore (your|all|previous|these) (instructions?|rules?|constraints?|prompts?)/i;
-function isInjectionAttempt(text) { return INJECTION_RE.test(text); }
+function isInjectionAttempt(text) { return INJECTION_RE.test(text) || PROMPT_INJECTION_RE.test(text); }
 
 // ─── System Prompt Builder ────────────────────────────────────
 function buildSystemPrompt(kbPassage, citation, department, nlpResult) {
@@ -422,10 +424,49 @@ function checkMultiIntentFollowUp(cleanMessage, conversationHistory) {
 
 // ─── Main Orchestrator ────────────────────────────────────────
 async function orchestrate(message, conversationHistory = [], userId = null) {
+  if (isEmergency(message) || isInjectionAttempt(message)) return orchestrateSingle(message, conversationHistory, userId);
+  const previous = [...conversationHistory].reverse().find(m => m.role === 'assistant');
+  let pending = previous?.metadata?.pending_intents || previous?.pending_intents || [];
+  const clauses = message.split(/\s+(?:and also|also|and then|and)\s+/i).map(text => text.trim()).filter(Boolean);
+  const intents = clauses.map(text => ({text, department: /\b(leave|vacation|pto)\b/i.test(text) ? 'HR' : /\b(vpn|password|laptop|computer)\b/i.test(text) ? 'IT' : /\b(reimbursement|expense|salary|refund)\b/i.test(text) ? 'Finance' : null}));
+  if (intents.length > 1 && intents.every(i => i.department) && new Set(intents.map(i => i.department)).size > 1) {
+    pending = intents;
+    return {action:'multi_clarify', type:'multi_intent_clarification', department:'General', detected_departments:pending.map(i=>i.department), pending_intents:pending,
+      response:'I noticed different topics. I can help with both requests. Which should we handle first?\n'+pending.map((i,n)=>`${n+1}. ${i.text}`).join('\n')+'\nI’ll keep the other request in this thread.'};
+  }
+  if(pending.length) {
+    const choice = /^\d+$/.test(message.trim()) ? Number(message.trim())-1 : pending.findIndex(i => message.toLowerCase().includes(i.department.toLowerCase()) || i.text.toLowerCase().split(/\W+/).filter(w=>w.length>3).some(w=>message.toLowerCase().includes(w)));
+    const selected = choice >= 0 && choice < pending.length ? choice : pending.length === 1 && /^(yes|next|continue|go ahead)[.!]?$/i.test(message.trim()) ? 0 : -1;
+    if(selected >= 0) {
+      const result = await orchestrateSingle(pending[selected].text, [], userId);
+      const remaining = pending.filter((_,n)=>n!==selected);
+      return {...result,pending_intents:remaining,pending_prompt:remaining.length?'Still in this thread: '+remaining.map(i=>i.text).join('; ')+'. Say “next” to handle it.':null};
+    }
+  }
+  const result=await orchestrateSingle(message,conversationHistory,userId);
+  return {...result,pending_intents:pending};
+}
+
+function highConfidenceRoute(text) {
+  if (/\b(?:lost|missing|misplaced)\s+(?:my\s+)?(?:id(?:\s+card)?|badge)\b/i.test(text)) return {department:'Facilities',forceAction:'ticket',lost_id:true};
+  if (/\b(?:production\s+)?server\s+(?:is\s+)?(?:down|offline|unavailable)\b/i.test(text)) return {department:'IT',forceAction:'ticket',urgent:true};
+  if (/\b(?:reimbursement|salary(?:\s+hasn.t)?\s+(?:not|has not)|salary.not.credited)\b/i.test(text)) return {department:'Finance'};
+  if (/\blaptop\b.*\b(?:slow|bahut|chal raha)\b/i.test(text)) return {department:'IT',forceAction:'ticket'};
+  if (/\b(?:nda|non.disclosure)\b/i.test(text)) return {department:'Legal',forceAction:'ticket'};
+  if (/\b(?:leave|pto|parental|vacation)\b/i.test(text)) return {department:'HR'};
+  if (/\b(?:angry|abusive|rude)\b.*\b(?:email|manager|colleague)\b|\bcomplaint\b.*\b(?:email|manager|colleague)\b/i.test(text)) return {department:'HR',forceAction:'ticket'};
+  return null;
+}
+
+async function orchestrateSingle(message, conversationHistory = [], userId = null) {
+  if (isEmergency(message)) return { action:'emergency', type:'emergency', department:'Facilities', priority:'critical', priority_reason:'Immediate safety assistance required', response:EMERGENCY_REPLY };
   const startTime = Date.now();
 
   // ── Guard: PII redaction ──────────────────────────────────
   const { text: cleanMessage, redacted: piiFound } = redactPII(message);
+
+  const safety = inspectUserContent(cleanMessage,userId);
+  if(safety)return {action:'blocked',type:'content_filter',department:'General',response:safety.response,safety_category:safety.category,audit_id:safety.audit_id};
 
   // ── Guard: Offensive content ──────────────────────────────
   const hasOffensive = containsOffensive(cleanMessage);
@@ -488,7 +529,10 @@ async function orchestrate(message, conversationHistory = [], userId = null) {
   // ── Step 3: Department & Intent Classification ─────────────
   let routing = null;
 
-  if (multiFollowUp) {
+  const override = highConfidenceRoute(cleanMessage);
+  if (override && !multiFollowUp) {
+    routing={...override,confidence:0.99,model:'HighConfidenceRule',raw_department:override.department,intent_type:'SINGLE'};
+  } else if (multiFollowUp) {
     console.log(`[ML] Multi-intent follow-up resolved department: ${multiFollowUp.selectedDepartment}`);
     routing = {
       department: multiFollowUp.selectedDepartment,
@@ -565,7 +609,7 @@ async function orchestrate(message, conversationHistory = [], userId = null) {
   const kbResult = kbEngine.search(searchQuery, routing.department, 3);
 
   // ── Step 5: Confidence gate ────────────────────────────────
-  const action = applyConfidenceGate(routing, kbResult, nlpResult, cleanMessage, conversationHistory);
+  const action = routing.forceAction || applyConfidenceGate(routing, kbResult, nlpResult, cleanMessage, conversationHistory);
 
   // ── Step 5: Priority computation ───────────────────────────
   const { priority, priority_reason } = computePriority(cleanMessage, nlpResult.sentiment);
@@ -586,8 +630,9 @@ async function orchestrate(message, conversationHistory = [], userId = null) {
     multi_probability: routing.multi_probability,
     single_probability: routing.single_probability,
     multi_threshold: routing.multi_threshold,
-    priority,
-    priority_reason,
+    priority: routing.urgent ? 'critical' : priority,
+    priority_reason: routing.urgent ? 'Production service unavailable; team unable to work' : priority_reason,
+    lost_id: !!routing.lost_id,
     nlp: nlpResult,
     latency,
   };
@@ -706,9 +751,10 @@ async function orchestrate(message, conversationHistory = [], userId = null) {
     return {
       ...baseResult,
       type: 'answer',
+      department: kb?.department || baseResult.department,
       response,
       retrievalConfidence: kbResult?.retrievalConfidence || 'medium',
-      kbArticle: kb ? { id: kb.id, title: kb.title, source_citation: citation } : null,
+      kbArticle: kb ? { id: kb.id, department:kb.department, title: kb.title, source_citation: citation } : null,
       action: 'answer',
       resolution_type: 'answer',
       resolution_label: 'Answered directly',

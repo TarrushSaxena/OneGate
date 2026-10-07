@@ -1,6 +1,5 @@
 // Presentation-only identities. Passwords stay server-side and demo login is
 // disabled automatically in production.
-const DEMO_PASSWORD = 'Password@2026!';
 
 const DEMO_ACCOUNTS = [
   { key:'director', name:'Executive Director', email:'director.exec@company.com', role:'main_manager', department:'All', tier:'L3' },
@@ -53,4 +52,4 @@ function publicDemoAccount(definition, account) {
   };
 }
 
-module.exports = { DEMO_PASSWORD, DEMO_ACCOUNTS, ROLE_LABELS, publicDemoAccount };
+module.exports = { DEMO_ACCOUNTS, ROLE_LABELS, publicDemoAccount };

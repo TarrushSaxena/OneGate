@@ -1,1 +1,89 @@
-.og-glass-work .og-route-card{position:relative;background:linear-gradient(125deg,#e6f2ff 0%,#edf0ff 52%,#f4faff 100%);border:1px solid #bdd3ed;border-left:4px solid #6b94c5;box-shadow:inset 0 1px white,0 8px 24px #426a9d0c}.og-glass-work .og-route-person strong{color:#284d77}.og-glass-work .og-route-person small{color:#536d8b}.og-glass-work .og-mini-avatar{background:#dbe8fa;color:#395d89;border-color:#aec6e6}.og-glass-work #og-eta{font-variant-numeric:tabular-nums;color:#355d8c;font-weight:500;padding:8px 10px;background:#ffffff8a;border:1px solid #cadcf0;border-radius:9px;margin-top:10px}.og-glass-work[data-state=queued] .og-route-card{background:linear-gradient(120deg,#fff3dc,#fffaf0);border-color:#e5cca3;border-left-color:#bd8d46}.og-glass-work[data-state=escalated] .og-route-card{background:linear-gradient(120deg,#fff0e2,#fff8ef);border-color:#eac5a4;border-left-color:#bf7e40}.og-glass-work[data-state=resolved] .og-route-card{background:linear-gradient(120deg,#e6f5e9,#f5fbf0);border-color:#bddbbf;border-left-color:#6b9c73}.og-deadline-help{position:relative;display:inline-flex;margin-top:7px}.og-info-button{width:20px;height:20px;border:1px solid #9ab5d7;border-radius:50%;color:#4a6e99;background:#ffffffbd;font:600 11px Georgia,serif;cursor:help;padding:0}.og-deadline-tip{display:none;position:absolute;z-index:5;left:27px;bottom:0;width:min(310px,55vw);padding:12px 14px;border:1px solid #bdcfe5;border-radius:12px;background:#f8fbff;color:#36516e;font-size:11px;line-height:1.65;box-shadow:0 12px 25px #37537318}.og-deadline-help:hover .og-deadline-tip,.og-deadline-help:focus-within .og-deadline-tip{display:block}.og-info-button:focus-visible{outline:2px solid #678dbb;outline-offset:3px}
+/* Clean glass assignment card with soft neutral tint, amber queue accent, and circular info button */
+.og-glass-work .og-route-card {
+  position: relative;
+  background: linear-gradient(125deg, #f7faf6 0%, #ffffff 52%, #f4f8f4 100%);
+  border: 1px solid #d4e4d1;
+  border-left: 4px solid #4a7c59;
+  border-radius: 16px;
+  box-shadow: inset 0 1px white, 0 8px 24px rgba(44, 73, 57, 0.05);
+}
+.og-glass-work .og-route-person strong { color: #1e4a32; }
+.og-glass-work .og-route-person small { color: #5a7364; }
+.og-glass-work .og-mini-avatar { background: #e8f3e6; color: #235235; border-color: #c5dec1; }
+.og-glass-work #og-eta {
+  font-variant-numeric: tabular-nums;
+  color: #2a523b;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #cadfc8;
+  border-radius: 9px;
+  margin-top: 10px;
+}
+/* C11: Soft neutral/green tint with amber left accent only */
+.og-glass-work[data-state=queued] .og-route-card {
+  background: linear-gradient(120deg, #f7faf6, #ffffff);
+  border-color: #dbe7d7;
+  border-left: 4px solid #d97706;
+}
+.og-glass-work[data-state=escalated] .og-route-card {
+  background: linear-gradient(120deg, #fcf8f6, #ffffff);
+  border-color: #e8d5cc;
+  border-left: 4px solid #c2410c;
+}
+.og-glass-work[data-state=resolved] .og-route-card {
+  background: linear-gradient(120deg, #f0fdf4, #ffffff);
+  border-color: #bbf7d0;
+  border-left: 4px solid #16a34a;
+}
+.og-deadline-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+/* C5: 24px round icon next to ETA */
+.og-info-button {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  border: 1px solid #b8d2b5;
+  border-radius: 50%;
+  color: #355e42;
+  background: rgba(255, 255, 255, 0.95);
+  font: 700 12px system-ui, sans-serif;
+  cursor: help;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.og-deadline-tip {
+  display: none;
+  position: absolute;
+  z-index: 10;
+  left: 30px;
+  bottom: 0;
+  width: min(310px, 60vw);
+  padding: 12px 14px;
+  border: 1px solid #bcd4ba;
+  border-radius: 12px;
+  background: #f8fbf7;
+  color: #2b4f38;
+  font-size: 11.5px;
+  line-height: 1.6;
+  box-shadow: 0 12px 28px rgba(44, 73, 57, 0.12);
+}
+.og-deadline-help:hover .og-deadline-tip,
+.og-deadline-help:focus-within .og-deadline-tip {
+  display: block;
+}
+.og-info-button:focus-visible {
+  outline: 2px solid #3c7752;
+  outline-offset: 2px;
+}

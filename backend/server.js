@@ -1718,7 +1718,8 @@ io.on('connection', socket => {
   const actor = socket.data.user;
   socket.join(`user:${actor.id}`);
   if (actor.role === 'support_executive') { socket.join(`employee:${actor.id}`); socket.join(`department:${actor.department}`); }
-  if (actor.role === 'department_manager') socket.join(`department:${actor.department}`);
+  if (actor.role === 'department_manager') {socket.join(`department:${actor.department}`);socket.join(`manager:dept:${actor.department}`);socket.join(`manager:${actor.id}`);}
+  if (['support_executive','department_manager'].includes(actor.role) && ['Facilities','Cybersecurity'].includes(actor.department)) socket.join('security:alerts');
   if (actor.role === 'main_manager') socket.join('director');
   // Rooms are session-derived. Client-supplied identity and room joins are ignored.
   socket.on('employee:typing', ({ ticketId } = {}) => {

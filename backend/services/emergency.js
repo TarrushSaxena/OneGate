@@ -2,14 +2,19 @@
 // Data Classification: RESTRICTED
 const { v4: uuidv4 } = require('uuid');
 
+function isEmergency(text) {
+  return /\b(fainted|unconscious|fire|smoke|bleeding|chest pain|collapsed|injured|threat|harassment[ -]in[ -]progress)\b/i.test(text) && !/\b(fire drill|smoke test|firewall)\b/i.test(text);
+}
+const EMERGENCY_REPLY = 'Call 112 or your local emergency number now, and contact the security desk immediately. Move to safety if you can. Facilities and Security have been alerted; do not wait for a chat reply.';
+
 const DATA_CLASSIFICATION = 'RESTRICTED';
 
 const sosAlerts = [];
 const sosAuditLog = [];
 
-function triggerEmergencySOS({ employee, location, notes, contactPhone, state = null, io = null }) {
+function triggerEmergencySOS({ employee, location, notes, contactPhone, state = null, io = null, existingTicketId = null }) {
   const alertId = `sos-${uuidv4().slice(0, 8)}`;
-  const ticketId = `t-sos-${uuidv4().slice(0, 6)}`;
+  const ticketId = existingTicketId || `t-sos-${uuidv4().slice(0, 6)}`;
   const now = new Date().toISOString();
 
   // Create immediate urgent ticket in system state if available
@@ -18,7 +23,7 @@ function triggerEmergencySOS({ employee, location, notes, contactPhone, state = 
       id: ticketId,
       user_id: employee.id,
       user_name: employee.name,
-      department: employee.department || 'Facilities',
+      department: 'Facilities',
       subject: `🚨 EMERGENCY SOS — ${location}`,
       priority: 'critical',
       priority_reason: 'Emergency SOS alert triggered by employee',
@@ -38,7 +43,7 @@ function triggerEmergencySOS({ employee, location, notes, contactPhone, state = 
   }
 
   // Targeted Notification Channels (Strictly Narrow: Direct Manager, Security, HR)
-  const notifiedChannels = ['security:alerts', 'hr:leads'];
+  const notifiedChannels = ['security:alerts', 'department:Facilities', 'hr:leads'];
   if (employee.department) {
     notifiedChannels.push(`manager:dept:${employee.department}`);
   }
@@ -100,6 +105,7 @@ function getSosAuditLog() {
 }
 
 module.exports = {
+  isEmergency, EMERGENCY_REPLY,
   DATA_CLASSIFICATION,
   sosAlerts,
   sosAuditLog,

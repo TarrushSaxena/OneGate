@@ -248,7 +248,7 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 OneGate includes **28 pre-configured accounts** across 4 enterprise tiers with full RBAC isolation.
 
 > **Universal Master Password for All Accounts:**  
-> 🗝️ **`Password@2026!`**
+> 🗝️ **`TestOnly!12345`**
 
 ### ⚡ Quick Demo Access
 When visiting `http://localhost:3000/index.html`, click **Sign In** and use the **Quick Demo Access** dropdown to instantly log in as any role without typing passwords.
@@ -260,8 +260,8 @@ When visiting `http://localhost:3000/index.html`, click **Sign In** and use the 
 
 | Role | Name | Email | Password | Console Route |
 |---|---|---|---|---|
-| **Executive Director** | Executive Director | `director.exec@company.com` | `Password@2026!` | `/app/org` |
-| **Global Operations Manager** | Global Operations Manager | `main.manager@company.com` | `Password@2026!` | `/app/org` |
+| **Executive Director** | Executive Director | `director.exec@company.com` | `TestOnly!12345` | `/app/org` |
+| **Global Operations Manager** | Global Operations Manager | `main.manager@company.com` | `TestOnly!12345` | `/app/org` |
 
 ---
 
@@ -270,18 +270,18 @@ When visiting `http://localhost:3000/index.html`, click **Sign In** and use the 
 
 | Department | Manager Title | Work Email | Password |
 |---|---|---|---|
-| **IT Support** | IT Operations Head | `it.manager@company.com` | `Password@2026!` |
-| **IT Support (Personal Lead)** | Tarrush Saxena | `tarrushsaxena@gmail.com` | `Password@2026!` |
-| **Human Resources (HR)** | HR Director | `hr.manager@company.com` | `Password@2026!` |
-| **Finance & Accounts** | Finance Controller | `finance.manager@company.com` | `Password@2026!` |
-| **Billing & Invoicing** | Billing Operations Lead | `billing.manager@company.com` | `Password@2026!` |
-| **Customer Support** | Customer Support Manager | `customersupport.manager@company.com` | `Password@2026!` |
-| **Cybersecurity & InfoSec** | Chief InfoSec Officer | `cybersecurity.manager@company.com` | `Password@2026!` |
-| **Data & Analytics** | Data Analytics Lead | `dataanalytics.manager@company.com` | `Password@2026!` |
-| **Investor Relations** | IR Director | `investorrelations.manager@company.com` | `Password@2026!` |
-| **Legal & Compliance** | General Counsel | `legal.manager@company.com` | `Password@2026!` |
-| **Marketing & Brand** | Marketing VP | `marketing.manager@company.com` | `Password@2026!` |
-| **Quality Assurance (QA)** | QA Director | `qualityassurance.manager@company.com` | `Password@2026!` |
+| **IT Support** | IT Operations Head | `it.manager@company.com` | `TestOnly!12345` |
+| **IT Support (Personal Lead)** | Tarrush Saxena | `tarrushsaxena@gmail.com` | `TestOnly!12345` |
+| **Human Resources (HR)** | HR Director | `hr.manager@company.com` | `TestOnly!12345` |
+| **Finance & Accounts** | Finance Controller | `finance.manager@company.com` | `TestOnly!12345` |
+| **Billing & Invoicing** | Billing Operations Lead | `billing.manager@company.com` | `TestOnly!12345` |
+| **Customer Support** | Customer Support Manager | `customersupport.manager@company.com` | `TestOnly!12345` |
+| **Cybersecurity & InfoSec** | Chief InfoSec Officer | `cybersecurity.manager@company.com` | `TestOnly!12345` |
+| **Data & Analytics** | Data Analytics Lead | `dataanalytics.manager@company.com` | `TestOnly!12345` |
+| **Investor Relations** | IR Director | `investorrelations.manager@company.com` | `TestOnly!12345` |
+| **Legal & Compliance** | General Counsel | `legal.manager@company.com` | `TestOnly!12345` |
+| **Marketing & Brand** | Marketing VP | `marketing.manager@company.com` | `TestOnly!12345` |
+| **Quality Assurance (QA)** | QA Director | `qualityassurance.manager@company.com` | `TestOnly!12345` |
 
 ---
 
@@ -290,18 +290,18 @@ When visiting `http://localhost:3000/index.html`, click **Sign In** and use the 
 
 | Department | Specialist Name | Tier | Work Email | Password |
 |---|---|---|---|---|
-| **IT Support** | Priya Sharma | L3 Senior Lead | `priya.sharma@company.com` | `Password@2026!` |
-| **IT Support** | Rahul Verma | L1 Frontline | `rahul.verma@company.com` | `Password@2026!` |
-| **Human Resources** | Ananya Roy | L2 Specialist | `hr.support@company.com` | `Password@2026!` |
-| **Finance & Accounts** | Vikram Mehta | L2 Specialist | `finance.support@company.com` | `Password@2026!` |
-| **Billing & Invoicing** | Neha Gupta | L2 Specialist | `billing.support@company.com` | `Password@2026!` |
-| **Customer Support** | Arjun Das | L2 Specialist | `customersupport.support@company.com` | `Password@2026!` |
-| **Cybersecurity** | Kabir Rao | L3 Senior Lead | `cybersecurity.support@company.com` | `Password@2026!` |
-| **Data & Analytics** | Sneha Patel | L2 Specialist | `dataanalytics.support@company.com` | `Password@2026!` |
-| **Investor Relations** | Rohan Singhania | L2 Specialist | `investorrelations.support@company.com` | `Password@2026!` |
-| **Legal & Compliance** | Meera Nambiar | L3 Senior Lead | `legal.support@company.com` | `Password@2026!` |
-| **Marketing & Brand** | Aditya Sen | L2 Specialist | `marketing.support@company.com` | `Password@2026!` |
-| **Quality Assurance** | Tanvi Joshi | L2 Specialist | `qualityassurance.support@company.com` | `Password@2026!` |
+| **IT Support** | Priya Sharma | L3 Senior Lead | `priya.sharma@company.com` | `TestOnly!12345` |
+| **IT Support** | Rahul Verma | L1 Frontline | `rahul.verma@company.com` | `TestOnly!12345` |
+| **Human Resources** | Ananya Roy | L2 Specialist | `hr.support@company.com` | `TestOnly!12345` |
+| **Finance & Accounts** | Vikram Mehta | L2 Specialist | `finance.support@company.com` | `TestOnly!12345` |
+| **Billing & Invoicing** | Neha Gupta | L2 Specialist | `billing.support@company.com` | `TestOnly!12345` |
+| **Customer Support** | Arjun Das | L2 Specialist | `customersupport.support@company.com` | `TestOnly!12345` |
+| **Cybersecurity** | Kabir Rao | L3 Senior Lead | `cybersecurity.support@company.com` | `TestOnly!12345` |
+| **Data & Analytics** | Sneha Patel | L2 Specialist | `dataanalytics.support@company.com` | `TestOnly!12345` |
+| **Investor Relations** | Rohan Singhania | L2 Specialist | `investorrelations.support@company.com` | `TestOnly!12345` |
+| **Legal & Compliance** | Meera Nambiar | L3 Senior Lead | `legal.support@company.com` | `TestOnly!12345` |
+| **Marketing & Brand** | Aditya Sen | L2 Specialist | `marketing.support@company.com` | `TestOnly!12345` |
+| **Quality Assurance** | Tanvi Joshi | L2 Specialist | `qualityassurance.support@company.com` | `TestOnly!12345` |
 
 ---
 
@@ -310,7 +310,7 @@ When visiting `http://localhost:3000/index.html`, click **Sign In** and use the 
 
 | Role | Name | Department | Work Email | Password |
 |---|---|---|---|---|
-| **Employee** | Demo Employee | IT | `employee@company.com` | `Password@2026!` |
+| **Employee** | Demo Employee | IT | `employee@company.com` | `TestOnly!12345` |
 
 ---
 

@@ -69,10 +69,10 @@ test('PS18-07: Orchestrator action routing, multi-intent clarify, and grounded a
 
 test('PS18-07: non-work messages never create a specialist handoff', async () => {
   const direct = await orchestrate('I am horny', []);
-  assert.strictEqual(direct.action, 'out_of_scope');
-  assert.strictEqual(direct.type, 'out_of_scope');
+  assert.strictEqual(direct.action, 'blocked');
+  assert.strictEqual(direct.type, 'content_filter');
   assert.strictEqual(direct.department, 'General');
-  assert.strictEqual(direct.resolution_type, 'answer');
+  assert.strictEqual(direct.safety_category, 'sexual_content');
 
   const history = [
     { role: 'user', content: 'help' },

@@ -5,13 +5,14 @@
     const user = PS18.user;
     if (!user) return navigate('login');
     const employee = user.role === 'employee';
+    const orgManager = user.role === 'main_manager';
     let conversationId=sessionStorage.getItem('og-conversation-'+user.id)||'';
     const manager = ['department_manager','main_manager'].includes(user.role);
     let selected = null, tickets = [], disposed = false, loading = false, pendingSubmission = null;
     const unreadTicketIds = new Set();
     let chatHistory=[], view='chat', busy=false, loader=null, thinkingTimer=null, typingTimer=null, typingSentAt=0, actionCatalog=null;
     const socket = PS18.connectSocket();
-    container.innerHTML = `<div class="og-work ${employee?'og-employee':''}"><aside class="og-nav"><a class="og-brand" href="#">OneGate<span>One place. Less friction.</span></a><div class="og-avatar">${escape((user.name || 'U').slice(0,1))}</div><p>${escape(user.name)}<small>${escape(user.department)}</small></p><button data-view="today">Today</button><button data-view="chat">${employee ? 'Ask OneGate' : 'Assigned queue'}</button><button data-view="tickets">${employee ? 'My requests' : 'Request queue'}</button>${manager ? '<button data-view="overview">Department overview</button>' : ''}<button id="og-logout">Sign out</button></aside><button type="button" class="og-sidebar-scrim" aria-label="Close navigation"></button><main class="og-main"><header><div><span class="og-eyebrow">YOUR WORKDAY, CONNECTED</span><h1>${employee ? 'How can we help?' : manager ? 'Your organization, in focus.' : 'Make someone’s day easier.'}</h1></div><span id="og-network" role="status">Connecting…</span></header><div id="og-error" role="alert"></div><div class="og-grid"><section id="og-request-list" class="og-panel og-list"><div class="og-list-heading"><div><span class="og-eyebrow">${employee?'YOUR WORK':'SUPPORT WORK'}</span><label for="og-search">${employee?'My requests':'Request queue'}</label></div><span id="og-request-count" class="og-request-count"></span></div><input id="og-search" type="search" placeholder="Search reference or subject"><div id="og-tickets"></div></section><section class="og-panel og-thread"><div id="og-context"></div><div id="og-messages" role="log" aria-label="Conversation" aria-live="polite"></div><form id="og-compose"><label for="og-draft" class="og-sr">Message</label><textarea id="og-draft" placeholder="Tell us what you need…" rows="2" maxlength="10000"></textarea><button type="submit">Send ↗</button></form><div id="og-actions"></div></section></div><section id="og-overview" class="og-panel" hidden></section></main></div>`;
+    container.innerHTML = `<div class="og-work ${employee?'og-employee':''}"><aside class="og-nav"><a class="og-brand" href="#">OneGate<span>One place. Less friction.</span></a><div class="og-avatar">${escape((user.name || 'U').slice(0,1))}</div><p>${escape(user.name)}<small>${escape(user.department)}</small></p><button data-view="today">Today</button><button data-view="chat">${employee ? 'Ask OneGate' : orgManager ? 'Request details' : 'Assigned queue'}</button><button data-view="tickets">${employee ? 'My requests' : orgManager ? 'All requests' : 'Request queue'}</button>${manager ? '<button data-view="overview">Department overview</button>' : ''}<button id="og-logout">Sign out</button></aside><button type="button" class="og-sidebar-scrim" aria-label="Close navigation"></button><main class="og-main"><header><div><span class="og-eyebrow">YOUR WORKDAY, CONNECTED</span><h1>${employee ? 'Ask OneGate' : manager ? 'Your organization, in focus.' : 'Make someone’s day easier.'}</h1></div><span id="og-network" role="status">Connecting…</span></header><div id="og-error" role="alert"></div><div class="og-grid"><section id="og-request-list" class="og-panel og-list"><div class="og-list-heading"><div><span class="og-eyebrow">${employee?'YOUR WORK':'SUPPORT WORK'}</span><label for="og-search">${employee?'My requests':'Request queue'}</label></div><span id="og-request-count" class="og-request-count"></span></div><input id="og-search" type="search" placeholder="Search reference or subject"><div id="og-tickets"></div></section><section class="og-panel og-thread"><div id="og-context"></div><div id="og-messages" role="log" aria-label="Conversation" aria-live="polite"></div><form id="og-compose"><label for="og-draft" class="og-sr">Message</label><textarea id="og-draft" placeholder="Tell us what you need…" rows="2" maxlength="10000"></textarea><button type="submit">Send ↗</button></form><div id="og-actions"></div></section></div><section id="og-overview" class="og-panel" hidden></section></main></div>`;
     const el = id => container.querySelector('#og-' + id);
     const work = container.querySelector('.og-work');
     work.classList.add('og-sidebar-collapsed');
@@ -23,13 +24,14 @@
     sidebarToggle.onclick=()=>{const open=work.classList.toggle('og-sidebar-expanded');work.classList.toggle('og-sidebar-collapsed',!open);sidebarToggle.setAttribute('aria-expanded',String(open));sidebarToggle.setAttribute('aria-label',open?'Collapse navigation':'Show navigation');};
     container.querySelector('.og-sidebar-scrim').onclick=closeSidebar;
     container.addEventListener('keydown',event=>{if(event.key==='Escape'&&(work.classList.contains('og-sidebar-expanded')||work.classList.contains('og-mobile-list-open')))closeSidebar();});
-    if(!employee){container.querySelector('.og-work').classList.add('og-specialist');container.querySelector('h1').textContent=manager?'Support oversight':'Specialist workspace';el('draft').placeholder='Write your reply to the employee…';}
+    if(!employee){container.querySelector('.og-work').classList.add(orgManager?'og-org-manager':'og-specialist');container.querySelector('h1').textContent=manager?'Support oversight':'Specialist workspace';el('draft').placeholder='Write your reply to the employee…';}
     const serviceNav = document.createElement('div');
     serviceNav.innerHTML = '<button data-view="calendar">Calendar</button><button data-view="services">Workplace services</button><button data-view="actions">My actions</button><button data-view="policies">View all policies</button>';
+    if(orgManager){serviceNav.querySelector('[data-view=actions]').textContent='Approvals';container.querySelector('[data-view=chat]').hidden=true;container.querySelector('[data-view=overview]').textContent='Organization overview';}
     container.querySelector('.og-nav').insertBefore(serviceNav, el('logout'));
     container.querySelectorAll('.og-nav button[data-view]').forEach(button=>button.title=button.textContent.trim());
-    if(!employee)container.querySelector('.og-nav').insertBefore(container.querySelector('.og-list'), serviceNav);
-    container.querySelector('[data-view="tickets"]').textContent=employee?'My requests':'Request queue';
+
+    container.querySelector('[data-view="tickets"]').textContent=employee?'My requests':orgManager?'All requests':'Request queue';
     container.querySelector('.og-work').classList.add('og-glass-work');
     container.querySelector('.og-list').hidden=employee;
     el('tickets').insertAdjacentHTML('beforebegin','<div class="og-filters" role="group" aria-label="Request status"><button data-filter="active" aria-pressed="true">Active</button><button data-filter="resolved" aria-pressed="false">Resolved</button><button data-filter="all" aria-pressed="false">All</button></div>');
@@ -40,16 +42,22 @@
       el('request-list').onclick=e=>{if(e.target.closest('.og-rail-close'))work.classList.remove('og-mobile-list-open');};
     }
     container.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;container.querySelectorAll('[data-filter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderList();});
-    el('compose').insertAdjacentHTML('beforebegin','<div id="og-thinking" role="status" aria-live="polite" hidden></div><div id="og-typing" role="status" aria-live="polite" hidden></div><div id="og-suggestions" class="og-suggestions" aria-label="Suggested questions"></div><div id="og-handoff" hidden></div>');
-    el('compose').insertAdjacentHTML('afterend','<p class="og-composer-note">Your conversation is saved. Shift + Enter for a new line.</p>');
+    el('compose').insertAdjacentHTML('beforebegin','<div id="og-thinking" role="status" aria-live="polite" hidden></div><div id="og-typing" role="status" aria-live="polite" hidden></div><div id="og-suggestions" class="og-suggestions" aria-label="Suggested questions"></div>');
+    el('compose').insertAdjacentHTML('afterend','<div id="og-handoff" hidden></div><p class="og-composer-note">Your conversation is saved. Shift + Enter for a new line.</p>');
     container.insertAdjacentHTML('beforeend','<dialog id="og-dialog" class="og-dialog"><form method="dialog"><div id="og-dialog-content"></div><div class="og-dialog-buttons"><button value="cancel" formnovalidate>Cancel</button><button id="og-dialog-confirm" value="confirm">Confirm</button></div></form></dialog>');
     const dialogForm = (html, confirmLabel='Confirm') => new Promise(resolve=>{
       const dialog=el('dialog');el('dialog-content').innerHTML=html;el('dialog-confirm').textContent=confirmLabel;
       dialog.onclose=()=>resolve(dialog.returnValue==='confirm'?Object.fromEntries(new FormData(dialog.querySelector('form'))):null);dialog.showModal();
     });
     const suggestions=()=>{
-      const prompts=selected?.status==='waiting_on_user'?['Here are the details you asked for','The issue is still happening']:selected?['The issue is still happening','Can you share the next step?']:['My VPN keeps disconnecting','What is the leave policy?','I need help with a reimbursement'];
-      el('suggestions').innerHTML=employee&&!busy?prompts.map(p=>`<button type="button" data-suggestion="${escape(p)}">${escape(p)} <span>↗</span></button>`).join(''):'';
+      if(selected || !employee || busy){
+        el('suggestions').innerHTML='';
+        el('suggestions').hidden=true;
+        return;
+      }
+      el('suggestions').hidden=false;
+      const prompts=['My VPN keeps disconnecting','What is the leave policy?','I need help with a reimbursement'];
+      el('suggestions').innerHTML=prompts.map(p=>`<button type="button" data-suggestion="${escape(p)}">${escape(p)} <span>↗</span></button>`).join('');
     };
     const workflowButtons = (message,submittedTypes) => {
       if(!employee||message.role!=='assistant')return '';
@@ -68,16 +76,16 @@
       if(active){el('thinking').innerHTML='';loader=new LatticeLoader({label:employee?'OneGate is reviewing your message':'Delivering your reply',showTimer:false});el('thinking').appendChild(loader.element);thinkingTimer=setTimeout(()=>{if(!disposed&&busy)el('thinking').querySelector('.lattice-text').textContent='This is taking longer than usual. Your message is still being processed.';},12000);}
     };
     const etaText=t=>{
-      if(t.status==='resolved')return 'Resolved — review the summary below';
-      if(t.status==='waiting_on_user')return 'Waiting for your details · reply target paused';
-      if(t.status==='ai_attempted')return 'Try the suggested steps, then tell us whether they worked';
-      if(t.needs_director_review)return 'Leadership has been alerted · no new reply time is confirmed';
-      if(t.awaiting_staff_reply===false)return 'Your specialist has replied · the conversation remains open';
+      if(t.status==='resolved')return 'Resolved';
+      if(t.status==='waiting_on_user')return 'Waiting for your details';
+      if(t.status==='ai_attempted')return 'Try the suggested steps';
+      if(t.needs_director_review)return 'Leadership alerted';
+      if(t.awaiting_staff_reply===false)return 'Specialist replied';
       if(!t.eta_updated_at)return t.eta_text||'Reply estimate not available yet';
-      const target=t.reply_target_at||t.eta_updated_at+t.eta_high_min*60000,remaining=Math.max(0,target-Date.now()),elapsed=(Date.now()-t.eta_updated_at)/60000,low=Math.max(0,Math.ceil(t.eta_low_min-elapsed)),high=Math.ceil(remaining/60000);
-      if(!high)return `The estimated reply window has passed${t.eta_clock?` (${t.eta_clock})`:''}. We’re still waiting for a reply.`;
-      const countdown=`${String(Math.floor(remaining/60000)).padStart(2,'0')}:${String(Math.floor(remaining/1000)%60).padStart(2,'0')}`;
-      return `About ${Math.min(low,high)} to ${high} min, by ${t.eta_clock} · reply target in ${countdown}${t.assigned_to?'':' · queue estimate'}`;
+      const target=t.reply_target_at||t.eta_updated_at+t.eta_high_min*60000,remaining=Math.max(0,target-Date.now()),high=Math.ceil(remaining/60000);
+      if(!high)return `Window passed${t.eta_clock?` (${t.eta_clock})`:''}`;
+      if(t.eta_clock)return `Reply expected by ${t.eta_clock}`;
+      return `Reply expected within ${high} min`;
     };
     const error = e => {
       if (disposed) return;
@@ -100,16 +108,36 @@
     const renderMessages = messages => {
       const target = el('messages');
       container.querySelector('.og-thread').classList.toggle('og-empty-chat',employee&&!selected&&messages.length===0);
-      const signature=JSON.stringify(messages);
+
+      let activeMessages = messages || [];
+      if (employee && view === 'chat' && selected) {
+        const map = new Map();
+        for (const m of chatHistory) { if (m && m.id) map.set(m.id, m); }
+        for (const m of (messages || [])) { if (m && m.id) map.set(m.id, m); }
+        for (const m of (selected.transcript || [])) { if (m && m.id) map.set(m.id, m); }
+        activeMessages = Array.from(map.values()).sort((a,b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+      }
+
+      const signature=JSON.stringify(activeMessages);
       if(target.dataset.signature===signature)return;
       target.dataset.signature=signature;
       const previousIds=new Set((target.dataset.messageIds||'').split('|').filter(Boolean));
       const animateNew=previousIds.size>0;
-      const submittedTypes=new Set(messages.filter(m=>m.metadata?.type==='workflow_submission').map(m=>m.metadata.workflow?.type).filter(Boolean));
-      target.dataset.messageIds=messages.map(m=>m.id).filter(Boolean).join('|');
-      const bottom = target.scrollHeight - target.scrollTop - target.clientHeight < 90;
-      target.innerHTML = messages.map(m => m.metadata?.workflow?workflowCard(m):`<article class="og-message ${m.role === 'user' ? 'og-own' : m.role==='system'?'og-event':''} ${animateNew&&m.id&&!previousIds.has(m.id)?'og-message-new':''}"><small>${escape(m.senderName || m.employeeName || (m.role === 'user' ? employee?'You':'Employee' : m.role === 'employee' ? 'Specialist' : m.role==='system'?'Request update':'OneGate · AI assistant'))}${m.employeeLevel?` · ${escape(m.employeeLevel)}`:''} · ${escape(PS18.formatTime(m.timestamp))}</small><div>${PS18.md(m.content)}</div>${m.metadata?.department&&m.role==='assistant'?`<details class="og-routing-trace"><summary>Answered by ${escape(m.metadata.department)}${m.metadata.kbArticle?' · policy source checked':''}</summary><span>${escape(m.metadata.kbArticle?.source_citation||'OneGate routing and knowledge guidance')}</span></details>`:''}${workflowButtons(m,submittedTypes)}</article>`).join('') || `<div class="og-empty og-welcome"><div class="og-spark" aria-hidden="true">✦</div><span class="og-eyebrow">ONE CONVERSATION. THE RIGHT NEXT STEP.</span><h2>${employee?'What can we get done?':'Your queue, with all the context.'}</h2><p>${employee?'Ask a question or complete a workplace task. OneGate can answer, route and submit the next step here.':'Select a request from the sidebar to see its conversation and next actions.'}</p></div>`;
-      if (bottom) target.scrollTop = target.scrollHeight;
+      const submittedTypes=new Set(activeMessages.filter(m=>m.metadata?.type==='workflow_submission').map(m=>m.metadata.workflow?.type).filter(Boolean));
+      target.dataset.messageIds=activeMessages.map(m=>m.id).filter(Boolean).join('|');
+
+      const ticketStartId = selected?.transcript?.[0]?.id;
+
+      target.innerHTML = activeMessages.map(m => {
+        const isTicketStart = selected && m.id === ticketStartId;
+        const dividerHtml = isTicketStart ? `<div class="og-ticket-divider"><span class="og-divider-line"></span><span class="og-divider-badge">Request ${escape(selected.reference)} opened · Queued for ${escape(selected.department)}</span><span class="og-divider-line"></span></div>` : '';
+        const bodyHtml = m.metadata?.workflow ? workflowCard(m) : `<article class="og-message ${m.role === 'user' ? 'og-own' : m.role==='system'?'og-event':''} ${animateNew&&m.id&&!previousIds.has(m.id)?'og-message-new':''}"><small>${escape(m.senderName || m.employeeName || (m.role === 'user' ? employee?'You':'Employee' : m.role === 'employee' ? 'Specialist' : m.role==='system'?'Request update':'OneGate · AI assistant'))}${m.employeeLevel?` · ${escape(m.employeeLevel)}`:''} · ${escape(PS18.formatTime(m.timestamp))}</small><div>${PS18.md(m.content)}</div>${m.metadata?.kbArticle&&m.role==='assistant'?`<details class="og-routing-trace"><summary>Answered by ${escape(m.metadata.department || 'Knowledge Base')} · policy source checked</summary><span>${escape(m.metadata.kbArticle?.source_citation||'OneGate knowledge guidance')}</span></details>`:''}${workflowButtons(m,submittedTypes)}</article>`;
+        return dividerHtml + bodyHtml;
+      }).join('') || `<div class="og-empty og-welcome"><div class="og-spark" aria-hidden="true">✦</div><span class="og-eyebrow">ONE CONVERSATION. THE RIGHT NEXT STEP.</span><h2>What can we get done?</h2><p>${employee?'Ask a question or complete a workplace task. OneGate can answer, route and submit the next step here.':'Select a request from the sidebar to see its conversation and next actions.'}</p></div>`;
+
+      target.scrollTop = target.scrollHeight;
+      requestAnimationFrame(() => { target.scrollTop = target.scrollHeight; });
+
       if(employee){
         const latest=[...chatHistory].reverse().find(m=>m.role==='user');
         const answer=[...chatHistory].reverse().find(m=>m.role==='assistant');
@@ -190,64 +218,147 @@
       const state=t?.status==='resolved'?'resolved':t?.status==='waiting_on_user'?'waiting':lifecycle==='reroute'?'rerouted':['escalate','auto_escalated'].includes(lifecycle)?'escalated':t?.status==='ai_attempted'?'self-service':t?.assigned_to?'assigned':t?'queued':'ready';
       container.querySelector('.og-work').dataset.state=state;
       el('typing').hidden=true;clearTimeout(typingTimer);el('handoff').hidden=!!t;
-      el('context').innerHTML = t ? `
-        <div class="og-ticket-heading">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span class="og-source" style="margin:0;font-weight:700;">${escape(t.reference)} · ${escape(t.department)}</span>
-            <span class="og-status-pill">${escape(t.status.replaceAll('_',' '))}</span>
-            ${t.priority === 'high' || t.priority === 'critical' ? `<span style="font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">⚡ ${escape(t.priority.toUpperCase())} PRIORITY</span>` : ''}
-          </div>
-        </div>
-        <h2 style="font-size:16.5px;font-weight:700;line-height:1.35;margin:8px 0 10px;color:#183626;word-break:break-word;">${escape(t.title)}</h2>
-        <div class="og-route-card">
-          <div class="og-route-person">
-            <span class="og-mini-avatar">${escape(t.assigned_name?.slice(0,1)||'✦')}</span>
-            <div>
-              <strong>${escape(t.assigned_name || (t.status==='ai_attempted'?'Self-service guidance':'Queued for a specialist'))}</strong>
-              <small>${escape(t.assigned_tier||t.department)}${t.assigned_name?` · ${t.assigned_connected?'Active in OneGate':'Not currently in live chat'} · ${escape(t.assigned_presence || 'online')}`:''}</small>
+      const priorityText = t?.priority === 'high' || t?.priority === 'critical' ? 'High priority' : t?.priority === 'low' ? 'Low priority' : 'Standard priority';
+      const priorityLabel = `${priorityText}${t?.priority_reason ? ` · ${t.priority_reason}` : ''}`;
+      const statusLabel = t ? (({acknowledged:'Specialist assigned',in_progress:'In progress',waiting_on_user:'Waiting on you',open:'In queue',resolved:'Resolved',ai_attempted:'Try suggested fix',escalated:'Escalated'})[t.status] || t.status.replaceAll('_',' ')) : '';
+      const etaDisplay = t ? etaText(t) : '';
+
+      if (employee && view === 'chat' && t) {
+        el('context').innerHTML = `
+          <div class="og-compact-bar" data-ticket-id="${escape(t.id)}">
+            <div class="og-compact-bar-main">
+              <div class="og-compact-bar-left">
+                <span class="og-compact-pill og-compact-ref">${escape(t.reference)}</span>
+                <span class="og-compact-pill og-compact-dept">${escape(t.department)}</span>
+                <span class="og-compact-pill og-compact-status" data-status="${escape(t.status)}">${escape(statusLabel)}</span>
+                <span class="og-compact-eta">${escape(etaDisplay)}</span>
+              </div>
+              <div class="og-compact-bar-right">
+                <div class="og-compact-actions">
+                  ${t.status !== 'resolved' ? `
+                    <button type="button" class="og-compact-btn" data-add-details="true">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>
+                      <span>Add details</span>
+                    </button>
+                    <button type="button" class="og-compact-btn" data-action="priority">⚡ Priority</button>
+                    <button type="button" class="og-compact-btn" data-action="reroute">⇄ Wrong team?</button>
+                  ` : `
+                    <button type="button" class="og-compact-btn" data-action="reopen">↩ Reopen</button>
+                    <button type="button" class="og-compact-btn" data-action="feedback">★ Rate</button>
+                  `}
+                </div>
+                <button type="button" id="og-compact-toggle" class="og-compact-toggle" aria-expanded="false" aria-label="Toggle request details">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 4 6 8 10 4"/></svg>
+                </button>
+                <button id="og-new" class="og-btn-new-q" type="button" aria-label="Ask an unrelated question">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>
+                  <span>New question</span>
+                </button>
+              </div>
+            </div>
+            <div class="og-compact-drawer" id="og-compact-drawer" hidden>
+              <div style="font-weight:700;font-size:13px;color:#183626;margin-bottom:4px;">${escape(t.title)}</div>
+              <div style="font-size:11.5px;color:#496552;margin-bottom:8px;">${escape(priorityLabel)}</div>
+              <div class="og-route-steps" style="margin:8px 0;">
+                <span class="is-done">● Request saved</span>
+                <span class="${t.assigned_to ? 'is-done' : 'is-current'}">${t.assigned_to ? '● Assigned' : '○ In queue'}</span>
+                <span class="${t.status === 'resolved' ? 'is-done' : ''}">${t.status === 'resolved' ? '● Resolved' : '○ In triage'}</span>
+              </div>
+              ${t.timeline && t.timeline.length ? `
+                <details class="og-timeline">
+                  <summary>Request timeline · ${t.timeline.length} ${t.timeline.length === 1 ? 'update' : 'updates'}</summary>
+                  ${t.timeline.map(e => `<p><strong>${escape(e.type.replaceAll('_',' '))}</strong><span>${escape(PS18.formatTime(e.timestamp))}</span><br>${escape(e.content||'')}</p>`).join('')}
+                </details>
+              ` : ''}
             </div>
           </div>
-          <p style="font-size:12px;margin:8px 0 6px;"><strong>${escape(t.priority)}</strong> · ${escape(t.priority_reason||'Standard request')}</p>
-          <p id="og-eta" aria-live="off" style="margin:6px 0;">${escape(etaText(t))}</p>
-          <div class="og-route-steps">
-            <span class="is-done">✓ Request saved</span>
-            <span class="${t.assigned_to?'is-done':''}">${t.assigned_to?'✓ Assigned':'○ In queue'}</span>
-            <span class="${t.status==='resolved'?'is-done':''}">${t.status==='resolved'?'✓ Resolved':'○ In triage'}</span>
-          </div>
-          ${employee ? `
-            <div class="og-card-actions">
-              ${t.status !== 'resolved' ? `
-                <button type="button" data-add-details="true">＋ Add details</button>
-                <button type="button" data-action="priority">⚡ Change priority</button>
-                <button type="button" data-action="reroute">⇄ Wrong team?</button>
-              ` : `
-                <button type="button" data-action="reopen" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;">↩ It’s not fixed (Reopen)</button>
-                <button type="button" data-action="feedback" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;">★ Rate support</button>
-              `}
+        `;
+        const toggle = el('context').querySelector('#og-compact-toggle');
+        if (toggle) {
+          toggle.onclick = () => {
+            const drawer = el('context').querySelector('#og-compact-drawer');
+            if (drawer) {
+              drawer.hidden = !drawer.hidden;
+              toggle.setAttribute('aria-expanded', String(!drawer.hidden));
+            }
+          };
+        }
+      } else {
+        el('context').innerHTML = t ? `
+          <div class="og-ticket-heading">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span class="og-source" style="margin:0;font-weight:700;">${escape(t.reference)} · ${escape(t.department)}</span>
+              <span class="og-status-pill">${escape(statusLabel)}</span>
+              ${t.priority === 'high' || t.priority === 'critical' ? `<span style="font-size:10px;font-weight:800;padding:4px 8px;border-radius:99px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">⚡ ${escape(priorityText.toUpperCase())}</span>` : ''}
             </div>
-          ` : ''}
-          ${t.routing_explanation ? `
-            <details class="og-routing-why" style="margin-top:10px;padding-top:8px;border-top:1px solid #dae5d4;font-size:11px;">
-              <summary style="cursor:pointer;font-weight:600;color:#355c41;">Why this team?</summary>
-              <p style="margin:4px 0 0;font-size:11px;color:#5a7364;line-height:1.5;">${escape(t.routing_explanation)}</p>
-            </details>
-          ` : ''}
-        </div>
-        ${t.resolution_summary ? `<div class="og-resolution"><strong>What was fixed</strong><p>${escape(t.resolution_summary)}</p></div>` : ''}
-        <details class="og-timeline"><summary>Request timeline · ${(t.timeline||[]).length} updates</summary>${(t.timeline||[]).map(e=>`<p><strong>${escape(e.type.replaceAll('_',' '))}</strong><span>${escape(PS18.formatTime(e.timestamp))}</span><br>${escape(e.content||'')}</p>`).join('')||'<p>No updates yet.</p>'}</details>
-      ` : '<div class="og-ticket-heading"><div><h2>Ask OneGate <span class="og-ai-badge">AI + people</span></h2><p>Your workday, without the runaround.</p></div><button id="og-new" type="button" aria-label="Ask an unrelated question">New question ↗</button></div>';
+          </div>
+          <h2 style="font-size:16.5px;font-weight:700;line-height:1.35;margin:8px 0 10px;color:#183626;word-break:break-word;">${escape(t.title)}</h2>
+          <div class="og-route-card">
+            <div class="og-route-person">
+              <span class="og-mini-avatar">${escape(t.assigned_name?.slice(0,1)||'✦')}</span>
+              <div>
+                <strong>${escape(t.assigned_name || (t.status==='ai_attempted'?'Self-service guidance':'Queued for a specialist'))}</strong>
+                <small>${escape(t.assigned_tier||t.department)}${t.assigned_name?` · ${t.assigned_connected?'Active in OneGate':'Not currently in live chat'} · ${escape(t.assigned_presence || 'online')}`:''}</small>
+              </div>
+            </div>
+            <p style="font-size:12px;margin:8px 0 6px;"><strong>${escape(priorityText)}</strong> · ${escape(t.priority_reason||'Standard request')}</p>
+            <div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+              <p id="og-eta" aria-live="off" style="margin:0;">${escape(etaDisplay)}</p>
+              ${!['resolved','ai_attempted','waiting_on_user'].includes(t.status)&&t.awaiting_staff_reply!==false?`
+                <span class="og-deadline-help">
+                  <button type="button" class="og-info-button" style="width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:11px;" aria-label="What happens if the reply target is missed?" aria-describedby="og-deadline-tip">i</button>
+                  <span class="og-deadline-tip" id="og-deadline-tip" role="tooltip">If no specialist replies by the end of this window, OneGate automatically routes this same request to ${escape(t.escalation_destination||'a senior specialist')}. If no senior is available, it stays in the senior queue. Your history is preserved.</span>
+                </span>
+              `:''}
+            </div>
+            <div class="og-route-steps">
+              <span class="is-done">● Request saved</span>
+              <span class="${t.assigned_to?'is-done':'is-current'}">${t.assigned_to?'● Assigned':'○ In queue'}</span>
+              <span class="${t.status==='resolved'?'is-done':''}">${t.status==='resolved'?'● Resolved':'○ In triage'}</span>
+            </div>
+            ${employee ? `
+              <div class="og-card-actions">
+                ${t.status !== 'resolved' ? `
+                  <button type="button" data-add-details="true">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>
+                    <span>Add details</span>
+                  </button>
+                  <button type="button" data-action="priority">⚡ Change priority</button>
+                  <button type="button" data-action="reroute">⇄ Wrong team?</button>
+                ` : `
+                  <button type="button" data-action="reopen" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;">↩ It’s not fixed (Reopen)</button>
+                  <button type="button" data-action="feedback" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;">★ Rate support</button>
+                `}
+              </div>
+            ` : ''}
+            ${t.routing_explanation ? `
+              <details class="og-routing-why" style="margin-top:10px;padding-top:8px;border-top:1px solid #dae5d4;font-size:11px;">
+                <summary style="cursor:pointer;font-weight:600;color:#355c41;">Why this team?</summary>
+                <p style="margin:4px 0 0;font-size:11px;color:#5a7364;line-height:1.5;">${escape(t.routing_explanation)}</p>
+              </details>
+            ` : ''}
+          </div>
+          ${t.resolution_summary ? `<div class="og-resolution"><strong>What was fixed</strong><p>${escape(t.resolution_summary)}</p></div>` : ''}
+          <details class="og-timeline">
+            <summary>Request timeline · ${(t.timeline||[]).length} ${(t.timeline||[]).length === 1 ? 'update' : 'updates'}</summary>
+            ${(t.timeline||[]).map(e=>`<p><strong>${escape(e.type.replaceAll('_',' '))}</strong><span>${escape(PS18.formatTime(e.timestamp))}</span><br>${escape(e.content||'')}</p>`).join('')||'<p>No updates yet.</p>'}
+          </details>
+        ` : `<div class="og-ticket-heading"><div><h2>Ask OneGate <span class="og-ai-badge">AI + people</span></h2><p>Your workday, without the runaround.</p></div><button id="og-new" class="og-btn-new-q" type="button" aria-label="Ask an unrelated question"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg><span>New question</span></button></div>`;
+      }
       el('compose').hidden = !!t && t.status === 'resolved' || !employee && !t;
       if(!t&&!employee)el('context').innerHTML='<h2>Request workspace</h2><p>Select a request from the sidebar to read the conversation and take the next step.</p>';
-      if(t){
-        if(employee&&t.status!=='resolved'){
-          const replyText=t.status==='waiting_on_user'?'Your reply is needed':t.awaiting_staff_reply===false?'Your specialist replied':t.assigned_name?`With ${t.assigned_name}`:`Waiting for ${t.department}`;
-          el('context').querySelector('.og-ticket-heading').insertAdjacentHTML('afterend',`<div class="og-live-summary" aria-live="polite"><span class="og-live-summary-dot"></span><div><strong>${escape(replyText)}</strong><span>${escape(etaText(t))}</span></div></div>`);
+      if(t&&!employee){
+        const card=el('context').querySelector('.og-route-card');
+        if(t.status==='waiting_on_user')el('context').querySelector('.og-status-pill').textContent='↩ Waiting on employee';
+        if(t.resolution_type==='dismissed'){el('context').querySelector('.og-status-pill').textContent='Closed without a fix';const label=el('context').querySelector('.og-resolution strong');if(label)label.textContent='Closure reason';}
+        if(card){
+          card.querySelector('.og-route-person').innerHTML=`<span class="og-mini-avatar">${escape((t.employee_name||'E').slice(0,1))}</span><div><strong>${escape(t.employee_name||'Employee')}</strong><small>${escape(t.employee_department||'')} · Submitted this request</small></div>`;
+          card.insertAdjacentHTML('afterbegin','<span class="og-eyebrow">INCOMING EMPLOYEE REQUEST</span>');
         }
-        if(!['resolved','ai_attempted','waiting_on_user'].includes(t.status)&&t.awaiting_staff_reply!==false){
-          el('context').querySelector('#og-eta')?.insertAdjacentHTML('afterend',`<span class="og-deadline-help"><button type="button" class="og-info-button" aria-label="What happens if the reply target is missed?" aria-describedby="og-deadline-tip">i</button><span class="og-deadline-tip" id="og-deadline-tip" role="tooltip">If no specialist replies by the end of this window, OneGate automatically routes this same request to ${escape(t.escalation_destination||'a senior specialist')}. If no senior is available, it stays in the senior queue. Your history is preserved.</span></span>`);
-        }
-        const pill = el('context').querySelector('.og-status-pill');
-        if (pill) pill.textContent = ({assigned:'✓ Specialist assigned',queued:'◷ In the queue',resolved:'✓ Resolved',waiting:'↩ Waiting on you',rerouted:'⇄ Team corrected',escalated:'↗ Escalated','self-service':'✦ Try the suggested fix'}[state]||t.status);
+        el('context').querySelector('.og-route-steps').innerHTML=`<span>Assigned to ${escape(t.assigned_name||'the queue')}</span><span>Full history below</span>`;
+        el('context').scrollTop=0;
+        el('messages').setAttribute('aria-label','Full employee conversation history');
+        const close=el('actions').querySelector('[data-action="dismiss"]');if(close)close.textContent='Dismiss / close';
       }
       if (employee) {
         el('actions').style.display = 'none';
@@ -258,17 +369,7 @@
       }
       if (t?.status === 'ai_attempted' && employee) el('actions').innerHTML += '<button data-ai="confirm">It worked</button><button data-ai="escalate">I still need help</button>';
       if (t) renderMessages(t.transcript);
-      if(t&&!employee){
-        const card=el('context').querySelector('.og-route-card');
-        if(t.status==='waiting_on_user')el('context').querySelector('.og-status-pill').textContent='↩ Waiting on employee';
-        if(t.resolution_type==='dismissed'){el('context').querySelector('.og-status-pill').textContent='Closed without a fix';const label=el('context').querySelector('.og-resolution strong');if(label)label.textContent='Closure reason';}
-        card.querySelector('.og-route-person').innerHTML=`<span class="og-mini-avatar">${escape((t.employee_name||'E').slice(0,1))}</span><div><strong>${escape(t.employee_name||'Employee')}</strong><small>${escape(t.employee_department||'')} · Submitted this request</small></div>`;
-        card.insertAdjacentHTML('afterbegin','<span class="og-eyebrow">INCOMING EMPLOYEE REQUEST</span>');
-        el('context').querySelector('.og-route-steps').innerHTML=`<span>Assigned to ${escape(t.assigned_name||'the queue')}</span><span>Full history below</span>`;
-        el('context').scrollTop=0;
-        el('messages').setAttribute('aria-label','Full employee conversation history');
-        const close=el('actions').querySelector('[data-action="dismiss"]');if(close)close.textContent='Dismiss / close';
-      }
+      else renderMessages(chatHistory);
       if(t&&!employee){
         el('actions').insertAdjacentHTML('beforeend',`
           <details class="og-assist" open>
@@ -304,7 +405,8 @@
           }catch(e){error(e);}finally{button.disabled=false;button.textContent='Regenerate Summary & Draft';}
         };
       }
-      if(switched)el('messages').scrollTop=el('messages').scrollHeight;
+      el('messages').scrollTop=el('messages').scrollHeight;
+      requestAnimationFrame(() => { el('messages').scrollTop=el('messages').scrollHeight; });
       suggestions();
     };
     const refresh = async () => {
@@ -313,9 +415,13 @@
         const result = await PS18.request('/tickets?limit=100');
         if (disposed) return;
         tickets = result.tickets; renderList();
+        if (employee) {
+          const history = await PS18.request(`/chat/conversation/${encodeURIComponent(user.id)}?conversationId=${encodeURIComponent(conversationId)}`);
+          if (!disposed) { chatHistory = history.messages || history; }
+        }
         if (selected) showTicket(tickets.find(t => t.id === selected.id) || null);
         else if (!employee) showTicket(tickets.find(t=>t.status!=='resolved')||null);
-        else if (employee) { const history = await PS18.request(`/chat/conversation/${encodeURIComponent(user.id)}?conversationId=${encodeURIComponent(conversationId)}`); if (!disposed) {chatHistory=history.messages||history;renderMessages(chatHistory);} }
+        else if (employee) renderMessages(chatHistory);
       } catch(e) { error(e); } finally { loading = false; }
     };
     const overview = async () => {
@@ -740,7 +846,7 @@
     };
     el('search').oninput = renderList;
     el('tickets').onclick = e => { const button = e.target.closest('[data-ticket]'); if (button){showTicket(tickets.find(t => t.id === button.dataset.ticket));if(employee)work.classList.remove('og-mobile-list-open');} };
-    const newConversation=()=>{conversationId=crypto.randomUUID();sessionStorage.setItem('og-conversation-'+user.id,conversationId);chatHistory=[];el('draft').value='';showTicket(null);renderMessages([]);el('handoff').hidden=true;el('draft').focus();};
+    const newConversation=()=>{conversationId=crypto.randomUUID();sessionStorage.setItem('og-conversation-'+user.id,conversationId);chatHistory=[];selected=null;el('draft').value='';showTicket(null);renderMessages([]);el('handoff').hidden=true;el('draft').focus();};
     el('context').onclick=e=>{
       if(e.target.closest('#og-new')&&!busy)return newConversation();
       if(e.target.closest('[data-add-details]')){el('draft').focus();el('draft').scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});return;}
@@ -771,21 +877,75 @@
     }
     el('compose').onsubmit = async e => {
       e.preventDefault(); const draft = el('draft').value.trim(); if (!draft||busy) return;
+
+      // Duplicate open ticket check (C16)
+      if (employee && !selected) {
+        const openDup = tickets.find(t => t.status !== 'resolved' && (
+          (draft.toLowerCase().includes('salary') && t.title.toLowerCase().includes('salary')) ||
+          (t.title && draft.toLowerCase() === t.title.toLowerCase())
+        ));
+        if (openDup) {
+          PS18.showToast(`You already have an open request about this (${openDup.reference})`, 'warning');
+        }
+      }
+
       const path=employee?'/chat/message':`/tickets/${selected.id}/reply`;
       const body=employee?{message:draft,conversationId,...(selected?{ticketId:selected.id}:{})}:{version:selected.version,message:draft};
       const fingerprint = JSON.stringify({path,body});
       if (pendingSubmission?.fingerprint !== fingerprint) pendingSubmission = {fingerprint,key:crypto.randomUUID()};
       const headers = {'Idempotency-Key':pendingSubmission.key};
-      const button = el('compose').querySelector('button'); button.disabled = true; button.textContent = 'Sending…'; el('error').textContent = '';
+      const button = el('compose').querySelector('button'); 
+      button.disabled = true; 
+      button.innerHTML = '<span class="og-btn-spinner" aria-hidden="true" style="width:11px;height:11px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:og-spin 0.6s linear infinite;margin-right:4px;"></span> Sending…'; 
+      el('error').textContent = '';
+      
+      // Optimistic user bubble (C13)
+      const optMessage = {
+        id: 'opt-' + Date.now(),
+        role: 'user',
+        content: draft,
+        timestamp: new Date().toISOString(),
+        senderName: employee ? 'You' : 'Your reply'
+      };
+      if (employee) chatHistory.push(optMessage);
+      if (selected) selected.transcript = [...(selected.transcript||[]), optMessage];
+      renderMessages(selected ? selected.transcript : chatHistory);
+      el('draft').value = '';
+      el('messages').scrollTop = el('messages').scrollHeight;
+      
       thinking(true);
-      const pending=document.createElement('article');pending.className='og-message og-own og-pending';pending.innerHTML=`<small>${employee?'You':'Your reply'} · Sending</small><div>${PS18.md(draft)}</div>`;el('messages').appendChild(pending);pending.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+      const submitStart = Date.now();
       try {
-        if (employee) {const result=await PS18.request(path, { method:'POST', headers, body:JSON.stringify(body) });if(result.ticket)selected=result.ticket;}
-        else await PS18.request(path, { method:'POST', headers, body:JSON.stringify(body) });
+        if (employee) {
+          const result = await PS18.request(path, { method:'POST', headers, body:JSON.stringify(body) });
+          if(result.ticket) selected = result.ticket;
+        } else {
+          await PS18.request(path, { method:'POST', headers, body:JSON.stringify(body) });
+        }
         pendingSubmission = null;
-        if (!disposed) { el('draft').value = ''; thinking(false);socket.emit('employee:typing-stop',{ticketId:selected?.id});await refresh(); }
-      } catch(e) {if(e.status===409&&/Idempotency key/i.test(e.message||''))pendingSubmission.key=crypto.randomUUID();error(e.status===409&&/Idempotency key/i.test(e.message||'')?'This message was not sent because its retry record was stale. Retry now to send it safely.':e);pending.querySelector('small').textContent='Not delivered · your draft is saved';pending.classList.add('og-failed');}
-      finally { if (!disposed) {thinking(false);button.disabled = false;button.textContent=pendingSubmission?'Retry ↗':'Send ↗';} }
+
+        // Visible typing/thinking indicator for at least 450ms (C13)
+        const elapsed = Date.now() - submitStart;
+        if (elapsed < 450) {
+          await new Promise(r => setTimeout(r, 450 - elapsed));
+        }
+
+        if (!disposed) { 
+          thinking(false);
+          socket.emit('employee:typing-stop',{ticketId:selected?.id});
+          await refresh(); 
+        }
+      } catch(e) {
+        if(e.status===409&&/Idempotency key/i.test(e.message||''))pendingSubmission.key=crypto.randomUUID();
+        error(e.status===409&&/Idempotency key/i.test(e.message||'')?'This message was not sent because its retry record was stale. Retry now to send it safely.':e);
+      } finally { 
+        if (!disposed) {
+          thinking(false);
+          button.disabled = false;
+          button.textContent = pendingSubmission ? 'Retry ↗' : 'Send ↗';
+          el('messages').scrollTop = el('messages').scrollHeight;
+        } 
+      }
     };
     el('actions').onclick = async e => {
       const button = e.target.closest('button[data-action],button[data-ai]'); if (!button || !selected) return;

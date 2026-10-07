@@ -3,13 +3,14 @@
 // ============================================================
 
 function renderHero(container) {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const images = ['photo-1485827404703-89b55fcc595e','photo-1518770660439-4636190af475','photo-1550751827-4bd374c3f58b','photo-1451187580459-43490279c0fa'];
   const railFrames = dir => Array.from({length:25},(_,s)=>{const u=s/24,scale=(2.6/25)*Math.pow(46/2.6,u),z=30*(1-1/scale),rail=44-55*Math.pow(1-u,3.3);return `${u*100}%{transform:translate3d(${dir*rail}cqw,0,${z}cqw) rotateY(${-dir*(6+22*u)}deg)}`;}).join('');
   container.innerHTML = `
-    <div class="hero-shell stream-hero">
+    <div class="hero-shell stream-hero ${reduced ? 'motion-paused' : ''}">
       <style>@keyframes stream-right{${railFrames(1)}}@keyframes stream-left{${railFrames(-1)}}</style>
       <div class="image-corridor" aria-hidden="true"><div class="corridor-rails">${['right','left'].map(dir=>Array.from({length:9},(_,i)=>`<div class="stream-card" style="animation-name:stream-${dir};animation-delay:${-i*24/9}s"><img src="https://images.unsplash.com/${images[i%images.length]}?auto=format&fit=crop&w=700&q=80" alt="" decoding="async"></div>`).join('')).join('')}</div></div>
-      <video class="hero-video" autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1800&q=85" aria-hidden="true">
+      <video class="hero-video" ${reduced ? '' : 'autoplay'} muted loop playsinline poster="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1800&q=85" aria-hidden="true">
         <source src="https://cdn.coverr.co/videos/coverr-a-person-typing-on-a-laptop-1570/1080p.mp4" type="video/mp4">
       </video>
       <div class="hero-video-wash" aria-hidden="true"></div>

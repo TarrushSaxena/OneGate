@@ -46,3 +46,24 @@
   .og-actions-summary{min-width:0;text-align:left;padding:12px 16px}.og-actions-hero{gap:12px}
   .og-action-history-detail{grid-template-columns:1fr}.og-main .og-actions-hero h2{font-size:29px}
 }
+
+/* The navigation drawer contains navigation only; queues stay in the workspace. */
+@media(max-width:680px){
+  #app .og-glass-work .og-nav{display:flex!important;flex-direction:column!important;align-items:stretch;flex-wrap:nowrap;gap:4px;white-space:normal;overflow-y:auto;max-height:none;height:100dvh;padding:20px 16px;box-sizing:border-box}
+  #app .og-glass-work .og-nav>div:not(.og-avatar){display:flex!important;flex-direction:column;gap:4px;width:100%;min-width:0}
+  #app .og-glass-work .og-nav button[data-view],#app .og-glass-work .og-nav #og-logout{display:block!important;width:100%!important;height:auto;min-height:44px;text-align:left;white-space:normal;font-size:14px!important;padding:12px!important;margin:0;box-sizing:border-box}
+  #app .og-glass-work .og-nav button::before{display:none}
+  #app .og-glass-work .og-nav #og-logout{margin-top:auto;padding-top:18px!important;flex-shrink:0}
+  #app .og-glass-work .og-nav .og-brand{display:block!important;font-size:24px!important;width:auto;height:auto;align-self:auto;margin-bottom:18px}
+  #app .og-glass-work .og-nav .og-brand::before{display:none}
+  #app .og-glass-work.og-specialist .og-grid{grid-template-columns:minmax(0,1fr);overflow:auto}
+  #app .og-glass-work.og-specialist .og-list{width:100%;max-height:220px;min-height:120px;box-sizing:border-box}
+}
+
+@media(max-width:680px){
+  #app .og-glass-work.og-employee .og-thread .og-suggestions{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:8px;padding:4px 2px 8px;width:100%;box-sizing:border-box}
+  #app .og-glass-work.og-employee .og-thread .og-suggestions::-webkit-scrollbar{display:none}
+  #app .og-glass-work.og-employee .og-thread .og-suggestions button{flex:0 0 auto!important;min-height:44px!important;white-space:nowrap!important;padding:8px 14px!important;box-sizing:border-box}
+}
+
+#app .og-nav button[hidden]{display:none!important}

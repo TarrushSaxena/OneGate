@@ -57,13 +57,13 @@ test('PS18-USP-7: Continuous Thread — Agent replies are written inline into em
     method: 'POST',
     token: agentToken,
     body: {
-      employeeId: agent.id,
+      version: chatRes.data.ticket.version,
       message: agentReplyText,
     },
   });
 
   assert.strictEqual(replyRes.status, 200);
-  assert.ok(replyRes.data.success);
+  assert.ok(replyRes.data.message);
 
   // 4. Fetch employee chat history through frontend conversation endpoint
   const convRes = await fetchApi(`/api/chat/conversation/${emp.id}`, {

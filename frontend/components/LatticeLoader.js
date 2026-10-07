@@ -39,6 +39,11 @@ class LatticeLoader {
 
   startTimer() {
     if (!this.showTimer) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const timerEl = this.element.querySelector('.lattice-timer');
+      if (timerEl) timerEl.textContent = '…';
+      return;
+    }
     const timerEl = this.element.querySelector('.lattice-timer');
     this.timerInterval = setInterval(() => {
       const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);

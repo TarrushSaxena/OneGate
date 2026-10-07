@@ -9,12 +9,22 @@ const https = require('https');
 const { URL } = require('url');
 
 const LLM_CONFIG = {
-  apiKey: process.env.ZENMUX_API_KEY || 'sk-ai-v1-31d6836f1af3bf13907e6923c7cdab7195e961e64b3e7b6b1a54e4f202aa7bf1',
+  apiKey: process.env.ZENMUX_API_KEY || '',
   baseUrl: process.env.ZENMUX_BASE_URL || 'https://zenmux.ai/api/v1',
   primaryModel: process.env.ZENMUX_PRIMARY_MODEL || 'dots-studio/dots3-note-prev',
   fallbackModels: ['z-ai/glm-4.7-flash-free', 'z-ai/glm-4.6v-flash-free'],
   timeoutMs: process.env.NODE_ENV === 'test' ? 1200 : 8000,
 };
+
+// Never substitute provider reasoning for a missing final answer.
+function finalAnswer(content) {
+  let text = typeof content === 'string' ? content : '';
+  text = text.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '').replace(/<think(?:ing)?>[\s\S]*$/gi, '').trim();
+  const markers = [...text.matchAll(/(?:I['’]ll respond:|final answer:)/gi)];
+  if (markers.length) text = text.slice(markers.at(-1).index + markers.at(-1)[0].length).trim();
+  if (/\b(?:the user is asking|I need to|first,? I|let me think)\b/i.test(text)) return '';
+  return text;
+}
 
 /**
  * Execute a single HTTP call to the zenmux chat completion endpoint.
@@ -54,12 +64,7 @@ function makeCompletionCall(model, messages, opts = {}) {
             return reject(new Error(parsed.error.message || `API error (${res.statusCode})`));
           }
           const choice = parsed.choices?.[0]?.message;
-          const text = (choice?.content || '').trim();
-          if (!text && choice?.reasoning) {
-            // Some reasoning models return thinking in reasoning field
-            return resolve(choice.reasoning.trim());
-          }
-          resolve(text);
+          resolve(finalAnswer(choice?.content));
         } catch (e) {
           reject(new Error(`LLM parse error: ${e.message}`));
         }
@@ -90,6 +95,7 @@ function makeCompletionCall(model, messages, opts = {}) {
  * 2. Fallbacks (z-ai/glm-4.6v-flash-free, etc.)
  */
 async function callLLM(messages, opts = {}) {
+  if (!LLM_CONFIG.apiKey) throw new Error('LLM is not configured');
   const modelsToTry = [LLM_CONFIG.primaryModel, ...LLM_CONFIG.fallbackModels];
   let lastError = null;
 
@@ -108,4 +114,4 @@ async function callLLM(messages, opts = {}) {
   throw lastError || new Error('All LLM models failed to produce an answer.');
 }
 
-module.exports = { callLLM, LLM_CONFIG };
+module.exports = { callLLM, LLM_CONFIG, finalAnswer };

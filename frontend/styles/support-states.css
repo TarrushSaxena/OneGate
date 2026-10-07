@@ -2,7 +2,7 @@
 .og-glass-work{--state-ink:#34644f;--state-tint:#edf6ee;--state-edge:#c8dfce}
 .og-glass-work[data-state=thinking]{--state-ink:#695098;--state-tint:#f2edff;--state-edge:#d8c9f2}
 .og-glass-work[data-state=routing],.og-glass-work[data-state=rerouted]{--state-ink:#315e98;--state-tint:#eaf3ff;--state-edge:#bed5f0}
-.og-glass-work[data-state=assigning],.og-glass-work[data-state=queued]{--state-ink:#84601f;--state-tint:#fff6df;--state-edge:#e5d19d}
+.og-glass-work[data-state=assigning],.og-glass-work[data-state=queued]{--state-ink:#2d573d;--state-tint:#f5f9f4;--state-edge:#d2e4d0}
 .og-glass-work[data-state=assigned],.og-glass-work[data-state=delivering]{--state-ink:#256b73;--state-tint:#e5f5f5;--state-edge:#b8dbdf}
 .og-glass-work[data-state=waiting],.og-glass-work[data-state=escalated]{--state-ink:#9a512d;--state-tint:#fff0e5;--state-edge:#edc8b0}
 .og-glass-work[data-state=resolved]{--state-ink:#346444;--state-tint:#ebf6e9;--state-edge:#c6ddbc}

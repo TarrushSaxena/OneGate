@@ -1,0 +1,8 @@
+const test=require('node:test');const assert=require('node:assert/strict');
+const {startTestServer,stopTestServer,fetchApi}=require('./helpers/harness');test.after(stopTestServer);
+test('fallback routes high-confidence workplace phrases and cites the actual KB department',async()=>{
+ await startTestServer();const a=await require('../auth/accountStore').createAccount({email:'routing-regressions@company.com',name:'Routing',role:'employee',department:'IT',password:'TestOnly!12345',active:true});const token=require('../auth/tokens').signToken(a);
+ const cases=[['Production server is down, whole team cannot work, urgent!!','IT','critical'],['I lost my ID card','Facilities'],["My reimbursement for travel hasn't been paid yet",'Finance'],['mera laptop bahut slow chal raha hai','IT'],['What is the leave policy?','HR'],['I want to complain about an angry email from my manager','HR'],['Can you recommend pizza?','General'],['What is the NDA policy?','Legal']];
+ for(const [message,department,priority] of cases){const r=await fetchApi('/api/chat/message',{method:'POST',token,body:{message,conversationId:require('crypto').randomUUID()}});assert.equal(r.status,200);assert.equal(r.data.message.metadata.department,department,message);if(priority)assert.equal(r.data.ticket.priority,priority);if(r.data.message.metadata.kbArticle)assert.equal(r.data.message.metadata.kbArticle.department,department);if(department==='Legal'||department==='General')assert.equal(r.data.message.metadata.kbArticle,null);}
+ const swipe=await fetchApi('/api/corporate/swipes/simulate',{method:'POST',token,body:{direction:'in'}});assert.equal(swipe.status,403);
+});

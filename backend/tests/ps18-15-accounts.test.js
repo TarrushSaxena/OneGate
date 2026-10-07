@@ -28,16 +28,11 @@ test('PS18-15: Employee account cannot hit any manager-only or support-executive
   const empToken = tokens.signToken(employee);
 
   const restrictedEndpoints = [
-    { method: 'GET', path: '/api/manager/department' },
-    { method: 'GET', path: '/api/admin/accounts' },
-    { method: 'POST', path: '/api/admin/accounts', body: { email: 'x@company.com', name: 'X', role: 'employee' } },
-    { method: 'GET', path: '/api/dashboard/all' },
-    { method: 'GET', path: '/api/departments/IT/dashboard' },
-    { method: 'PATCH', path: '/api/tickets/t-sample-01/status', body: { status: 'resolved' } },
-    { method: 'POST', path: '/api/tickets/t-sample-01/reply', body: { message: 'hello' } },
-    { method: 'POST', path: '/api/tickets/t-sample-01/resolve', body: { resolution: 'done' } },
-    { method: 'POST', path: '/api/tickets/t-sample-01/escalate', body: { reason: 'help' } },
-    { method: 'POST', path: '/api/routing/correct', body: { id: 'l1', correct_department: 'HR' } },
+    {method:'GET',path:'/api/pilot/dashboard'},
+    {method:'GET',path:'/api/admin/accounts'},
+    {method:'POST',path:'/api/admin/accounts',body:{email:'x@company.com',name:'X',role:'employee'}},
+    {method:'GET',path:'/api/manager/calendar'},
+    {method:'POST',path:'/api/workplace/records/announcements',body:{title:'Unauthorized'}}
   ];
 
   for (const ep of restrictedEndpoints) {

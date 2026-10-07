@@ -1,3 +1,4 @@
+const { isEmergency, triggerEmergencySOS } = require('../services/emergency');
 const express = require('express');
 const crypto = require('crypto');
 const { PilotStore } = require('../services/pilotStore');
@@ -20,6 +21,11 @@ function installPilot(app, io, runtime) {
   let callTimer;
   const id = () => crypto.randomUUID();
   const sync = () => {
+    for(const a of accounts.listAccounts().filter(a=>a.active&&a.role==='support_executive')) {
+      let agent=runtime.employees.find(e=>e.id===a.id);
+      if(!agent){agent={id:a.id};runtime.employees.push(agent);}
+      Object.assign(agent,{name:a.name,department:a.department,tier:a.tier||'L1',status:a.status||'offline',skill_tags:a.skill_tags||[],rolling_score:a.rolling_score??90,tenure:a.tenure||0});
+    }
     runtime.tickets = store.data.tickets;
     runtime.conversations = store.data.conversations;
     for (const agent of runtime.employees) agent.current_load = runtime.tickets.filter(t => t.assigned_to === agent.id && !['resolved','ai_attempted'].includes(t.status)).length;
@@ -66,6 +72,7 @@ function installPilot(app, io, runtime) {
       routing_explanation: t.routing_explanation || 'Matched to the team responsible for this request',
       allowed_actions: user.role === 'employee' ? (t.status === 'resolved' ? ['reopen','feedback'] : ['reply','priority']) : (t.status === 'resolved' ? [] : ['reply','waiting_on_user','resolve','escalate','dismiss']),
     };
+    if(user.role!=='employee') {result.assignment=t.assignment;result.required_tier=t.required_tier;}
     return result;
   };
   const ticketFor = (data, req) => {
@@ -330,7 +337,7 @@ function installPilot(app, io, runtime) {
       const text = clean(raw), key=conversationKey(req.user,req.body.conversationId), history = data.conversations[key] ||= [];
       const userMessage = {id:id(),role:'user',content:text,owner_id:req.user.id,timestamp:new Date().toISOString()};
       history.push(userMessage);
-      if(req.body.ticketId) {
+      if(req.body.ticketId && !isEmergency(text)) {
         const t=data.tickets.find(t=>t.id===req.body.ticketId);
         if(!t || t.user_id!==req.user.id) fail(403,'Ticket access denied');
         if(t.status==='resolved') fail(409,'Reopen this ticket before replying');
@@ -342,9 +349,10 @@ function installPilot(app, io, runtime) {
         return {ticket:safeTicket(t,req.user),message:null,userMessage,event:e};
       }
       const outcome = await orchestrate(text,history,req.user.id);
+      if(outcome.safety_category)(data.workplace.contentAudit||=[]).push({id:outcome.audit_id,user_id:req.user.id,category:outcome.safety_category,timestamp:new Date().toISOString()});
       io.to(`user:${req.user.id}`).emit('chat:progress',{state:'routing',department:outcome.department,label:['ticket','ai_attempted'].includes(outcome.action)?`Preparing the next step for ${outcome.department}`:'Preparing your answer'});
       let t=null;
-      if(['ticket','ai_attempted'].includes(outcome.action)) {
+      if(['ticket','ai_attempted','emergency'].includes(outcome.action)) {
         const cleanTitle = (rawText => {
           const firstLine = (rawText || '').split('\n')[0].replace(/^details\s+of\s+the\s+issue\s*[:\-]?\s*/i, '').trim();
           if (firstLine.length <= 110) return firstLine;
@@ -353,17 +361,24 @@ function installPilot(app, io, runtime) {
           return (lastSpace > 60 ? chunk.slice(0, lastSpace) : chunk) + '…';
         })(text);
         t={id:id(),reference:`OG-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`,version:1,user_id:req.user.id,conversation_id:req.user.id,title:cleanTitle,department:outcome.department,priority:outcome.priority==='medium'?'normal':outcome.priority || 'normal',priority_reason:outcome.priority_reason || 'Standard support request',required_tier:['high','critical'].includes(outcome.priority)?'L2':'L1',resolution_type:outcome.action==='ai_attempted'?'ai_attempted':'human_required',status:outcome.action==='ai_attempted'?'ai_attempted':'open',assigned_to:null,created_at:Date.now(),transcript:[userMessage],timeline:[],sla_deadline:Date.now()+getSLAHours(outcome.priority)*3600000,ai_attempt:outcome.fix || null};
-        if(t.status!=='ai_attempted') assign(t,data);
+        if(outcome.lost_id){const w=data.workplace;w.cards||={};w.cards[`badge-${req.user.id}`]={employee_id:req.user.id,status:'deactivated'};(w.cardAudit||=[]).push({id:id(),action:'ID_CARD_DEACTIVATED',employee_id:req.user.id,performed_by:req.user.id,timestamp:new Date().toISOString()});t.lost_id=true;}
+        t.is_emergency=outcome.action==='emergency';
+        if(t.is_emergency)(data.workplace.sosAudit||=[]).push({id:id(),action:'EMERGENCY_SOS_TRIGGERED',dataClassification:'RESTRICTED',timestamp:new Date().toISOString(),employee_id:req.user.id,ticket_id:t.id,notified_channels:['security:alerts','department:Facilities']});
+        if(t.status!=='ai_attempted' && !t.is_emergency) assign(t,data);
         if(t.assigned_to) t.status='acknowledged';
         t.conversation_id=key;data.tickets.push(t);
       }
-      const m={id:id(),role:'assistant',owner_id:req.user.id,content:outcome.response,timestamp:new Date().toISOString(),ticket_id:t?.id,resolution_type:t?.resolution_type || 'answer',metadata:{department:outcome.department,kbArticle:outcome.kbArticle || null,type:outcome.type,intents:outcome.intents,suggestedActions:matchActions(outcome.kbArticle)}};
+      const m={id:id(),role:'assistant',owner_id:req.user.id,content:outcome.response,timestamp:new Date().toISOString(),ticket_id:t?.id,resolution_type:t?.resolution_type || 'answer',metadata:{safety_category:outcome.safety_category||null,pending_intents:outcome.pending_intents||[],department:outcome.department,kbArticle:outcome.kbArticle || null,type:outcome.type,intents:outcome.intents,suggestedActions:matchActions(outcome.kbArticle)}};
       // Replace optimistic assignment promises with actual assignment truth.
-      if(t && t.resolution_type==='human_required') m.content=t.assigned_to?`Connecting you with ${accounts.findById(t.assigned_to)?.name || 'a specialist'}. ${t.eta_text}. Your notes go with the request.`:`Your request is queued for ${t.department}. No specialist is available yet. ${t.eta_text}.`;
+      if(t && !t.is_emergency && t.resolution_type==='human_required') m.content=t.assigned_to?`Connecting you with ${accounts.findById(t.assigned_to)?.name || 'a specialist'}. ${t.eta_text}. Your notes go with the request.`:`Your request is queued for ${t.department}. No specialist is available yet. ${t.eta_text}.`;
+      if(t?.lost_id)m.content='Your ID card is deactivated in OneGate. Contact the security desk (ext. 5555) immediately for physical access assistance and a replacement. '+m.content;
+      if(outcome.pending_prompt)m.content+='\n\n'+outcome.pending_prompt;
       history.push(m); if(t) t.transcript.push(m);
       const e=event(data,t?'ticket_created':'answered',t,m.content); if(t)t.timeline.push(e);
-      return {message:m,ticket:t?safeTicket(t,req.user):null,event:e,content_filter_applied:text!==raw};
+      return {message:m,ticket:t?safeTicket(t,req.user):null,event:e,lost_id:!!t?.lost_id,emergency:t?.is_emergency || false,content_filter_applied:text!==raw};
     });
+    if(!result.replayed && result.lost_id)io.to('security:alerts').to('department:Facilities').emit('security:badge:deactivated',{employeeId:req.user.id,ticketId:result.ticket.id});
+    if(!result.replayed && result.emergency) triggerEmergencySOS({employee:req.user,location:'Reported in chat',notes:clean(raw),io,existingTicketId:result.ticket.id});
     if(!result.replayed && result.ticket) {
       const t=store.data.tickets.find(t=>t.id===result.ticket.id);publish(t,result.event,req.body.ticketId?result.userMessage:null);
     }
@@ -452,7 +467,7 @@ function installPilot(app, io, runtime) {
       if(req.body.version!==t.version)fail(409,'Ticket changed. Refresh before trying again');
       if(t.status!=='ai_attempted')fail(409,'This attempt has already been handled');
       if(req.params.action==='confirm'){t.status='resolved';t.resolved_at=Date.now();t.resolution_summary='Resolved after the recommended self-service fix.';}
-      else if(req.params.action==='escalate'){t.resolution_type='human_required';assign(t,data);t.status=t.assigned_to?'acknowledged':'open';}
+      else if(req.params.action==='escalate'){t.warm_summary='Employee attempted the recommended fix and reported it did not work. Do not repeat the attempted steps. '+JSON.stringify(t.ai_attempt);t.resolution_type='human_required';assign(t,data);t.status=t.assigned_to?'acknowledged':'open';}
       else fail(404,'Unknown attempt action');
       t.version++;const m=message(data,t,'system',t.status==='resolved'?t.resolution_summary:`Your attempted fix is included for the specialist. ${t.eta_text}`);const e=event(data,req.params.action,t,m.content);t.timeline.push(e);return {ticket:safeTicket(t,req.user),event:e,message:m};
     });if(!output.replayed)publish(store.data.tickets.find(t=>t.id===output.ticket.id),output.event,output.message);res.json(output);
@@ -466,6 +481,8 @@ function installPilot(app, io, runtime) {
   router.post('/outages/:id/subscribe',wrap(async(req,res)=>{await commit(req,data=>{if(!runtime.outages.some(o=>o.id===req.params.id))fail(404,'Outage not found');data.subscriptions.push({outage_id:req.params.id,user_id:req.user.id});return {subscribed:true};});res.json({subscribed:true});}));
   router.get('/pilot/outages',wrap(async(req,res)=>res.json(runtime.outages.filter(o=>!o.department||o.department===req.user.department))));
 
+  require('./safetyPilot').installSafety(router,{store,wrap,commit,id},io);
+  require('./managerPilot').installManager(router,{store,wrap,commit},io);
   require('./workplacePilot').installWorkplace(router,{store,wrap,commit,id},io);
   // Durable deadline worker: catch up after restart; serial transactions prevent
   // repeated ticks or concurrent workers from escalating the same version twice.

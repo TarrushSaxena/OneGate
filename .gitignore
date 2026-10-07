@@ -40,3 +40,12 @@ Thumbs.db
 # Test runner logs & raw runs
 .playwright-cli/
 output/
+
+# Local secrets and private runtime state
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/data/runtime/

@@ -43,7 +43,7 @@ test('PS18-USP-3: Ticket assignment persists score, reason, matched factors, and
     token: empToken,
     body: {
       userId: emp.id,
-      message: 'Need hardware specialist urgently: MacBook Pro motherboard fried and smelling like smoke',
+      message: 'Need hardware specialist urgently: MacBook Pro motherboard broken and needs replacement',
     },
   });
 
@@ -58,7 +58,7 @@ test('PS18-USP-3: Ticket assignment persists score, reason, matched factors, and
   });
 
   assert.strictEqual(agentTicketRes.status, 200);
-  const ticket = agentTicketRes.data;
+  const ticket = agentTicketRes.data.ticket;
   assert.ok(ticket.assignment, 'Ticket must contain assignment details');
   assert.ok(typeof ticket.assignment.score === 'number', 'Assignment score must be a number');
   assert.ok(ticket.assignment.score >= 0 && ticket.assignment.score <= 100, 'Score must be between 0 and 100');
@@ -73,11 +73,11 @@ test('PS18-USP-3: Ticket assignment persists score, reason, matched factors, and
   });
 
   assert.strictEqual(empTicketRes.status, 200);
-  const empTicket = empTicketRes.data;
+  const empTicket = empTicketRes.data.ticket;
   assert.strictEqual(empTicket.assignment?.score, undefined, 'Raw assignment score must NOT leak to employee');
   assert.strictEqual(empTicket.assignment?.matched_factors, undefined, 'Internal matched factors must NOT leak to employee');
   assert.ok(
-    /specialist|expertise|availability/i.test(empTicket.assignment?.safe_summary || empTicket.assignment?.reason || ''),
+    /team|specialist|expertise|availability/i.test(empTicket.routing_explanation || ''),
     'Employee receives safe human-friendly explanation'
   );
 });

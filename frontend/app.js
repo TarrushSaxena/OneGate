@@ -59,7 +59,7 @@ window.PS18 = {
     return s;
   },
 
-  showToast(message, type = 'info', duration = 3500) {
+  showToast(message, type = 'info', duration = 2500) {
     const icons = {
       info:    '💬',
       success: '✅',
@@ -77,6 +77,8 @@ window.PS18 = {
 
     const container = document.getElementById('toast-container');
     if (container) {
+      const header=document.querySelector('.og-main>header');
+      container.style.top=`${Math.max(88,(header?.getBoundingClientRect().bottom||76)+12)}px`;
       container.appendChild(el);
       setTimeout(() => {
         el.style.opacity = '0';
@@ -156,7 +158,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   try {
-    const res = await fetch('/api/auth/me');
+    const token=localStorage.getItem('ps18_token');
+    if(!token){navigate('hero');return;}
+    const res = await fetch('/api/auth/me',{headers:{Authorization:`Bearer ${token}`}});
     if (res.ok) {
       const data = await res.json();
       window.PS18.user = data.user;

@@ -72,7 +72,7 @@ test('PS18-14: Employee token/session is rejected server-side with 403 by manage
   const empToken = tokens.signToken(empAccount);
 
   // Try to access Department Manager dashboard/endpoint as Employee
-  const mgrRes = await fetchApi('/api/manager/department', {
+  const mgrRes = await fetchApi('/api/pilot/dashboard', {
     method: 'GET',
     token: empToken,
   });
@@ -86,7 +86,7 @@ test('PS18-14: Employee token/session is rejected server-side with 403 by manage
   assert.strictEqual(adminRes.status, 403, `Employee hitting admin endpoint must get 403, got ${adminRes.status}`);
 
   // Try to hit with manipulated role in query or body
-  const forgedQueryRes = await fetchApi('/api/manager/department?role=main_manager', {
+  const forgedQueryRes = await fetchApi('/api/pilot/dashboard?role=main_manager', {
     method: 'GET',
     token: empToken,
   });
@@ -201,7 +201,7 @@ test('PS18-14: Passwords are never logged or returned in API responses and must 
 test('PS18-14: Forged or tampered JWTs (wrong secret, alg:none, altered role) are rejected', async () => {
   // 1. None algorithm
   const noneToken = jwt.sign({ sub: 'attacker', role: 'main_manager' }, '', { algorithm: 'none' });
-  const noneRes = await fetchApi('/api/manager/department', {
+  const noneRes = await fetchApi('/api/pilot/dashboard', {
     method: 'GET',
     token: noneToken,
   });
@@ -209,62 +209,17 @@ test('PS18-14: Forged or tampered JWTs (wrong secret, alg:none, altered role) ar
 
   // 2. Wrong secret
   const forgedToken = jwt.sign({ sub: 'attacker', role: 'main_manager' }, 'totally-wrong-secret-key-123456');
-  const forgedRes = await fetchApi('/api/manager/department', {
+  const forgedRes = await fetchApi('/api/pilot/dashboard', {
     method: 'GET',
     token: forgedToken,
   });
   assert.strictEqual(forgedRes.status, 401, 'Token signed with wrong secret must be rejected with 401');
 });
 
-test('PS18-14: Email signup creates account, enforces password strength, sets session, and redirects by role', async () => {
-  const accountStore = require('../auth/accountStore');
-
-  // 1. Weak password rejected
-  const weakSignup = await fetchApi('/api/auth/signup', {
-    method: 'POST',
-    body: {
-      name: 'Weak User',
-      email: 'weak.user@company.com',
-      password: 'weak',
-      role: 'employee',
-      department: 'Marketing',
-    },
-  });
-  assert.strictEqual(weakSignup.status, 400, 'Weak password rejected on signup');
-
-  // 2. Valid signup as Main Manager
-  const signupEmail = `founder.${Date.now()}@company.com`;
-  const validSignup = await fetchApi('/api/auth/signup', {
-    method: 'POST',
-    body: {
-      name: 'Company Founder',
-      email: signupEmail,
-      password: 'StrongFounderPassword#2026',
-      role: 'main_manager',
-      department: 'IT',
-    },
-  });
-
-  assert.strictEqual(validSignup.status, 201, 'Valid signup succeeds with 201');
-  assert.strictEqual(validSignup.data.user.role, 'main_manager');
-  assert.strictEqual(validSignup.data.redirect, '/app/org');
-  assert.ok(validSignup.data.token, 'Session token returned');
-
-  // Verify account was created in store and plaintext password never exposed
-  const created = accountStore.findByEmail(signupEmail);
-  assert.ok(created, 'Account created in store');
-  assert.strictEqual(validSignup.data.user.password, undefined);
-  assert.strictEqual(validSignup.data.user.password_hash, undefined);
-
-  // 3. Duplicate email signup rejected
-  const dupSignup = await fetchApi('/api/auth/signup', {
-    method: 'POST',
-    body: {
-      name: 'Imposter',
-      email: signupEmail,
-      password: 'StrongFounderPassword#2026',
-      role: 'employee',
-    },
-  });
-  assert.strictEqual(dupSignup.status, 409, 'Duplicate email rejected with 409');
+test('PS18-14: Public signup cannot provision any role', async () => {
+ for(const role of ['employee','main_manager','department_manager']) {
+  const r=await fetchApi('/api/auth/signup',{method:'POST',body:{email:'signup@company.com',name:'Signup',role}});
+  assert.strictEqual(r.status,403);
+ }
+ assert.strictEqual(require('../auth/accountStore').findByEmail('signup@company.com'),null);
 });

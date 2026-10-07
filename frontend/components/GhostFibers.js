@@ -26,7 +26,32 @@ class GhostFibers {
   init() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.drawStatic();
+      return;
+    }
     this.animate();
+  }
+
+  drawStatic() {
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    const { layers, waveAmplitude, waveFrequency } = this.options;
+    const h = this.height;
+    const w = this.width;
+    for (let l = 0; l < layers; l++) {
+      const layerOffset = (l / layers) * Math.PI * 2;
+      this.ctx.beginPath();
+      this.ctx.lineWidth = 1.2;
+      const alpha = 0.12 + (l / layers) * 0.18;
+      this.ctx.strokeStyle = `rgba(2, 132, 199, ${alpha})`;
+      for (let x = 0; x <= w; x += 12) {
+        const nx = (x / w) * waveFrequency;
+        const y = h * 0.5 + Math.sin(nx + layerOffset) * (h * waveAmplitude * 10);
+        if (x === 0) this.ctx.moveTo(x, y);
+        else this.ctx.lineTo(x, y);
+      }
+      this.ctx.stroke();
+    }
   }
 
   resize() {

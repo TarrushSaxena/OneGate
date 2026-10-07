@@ -10,7 +10,7 @@ test.before(async () => {
       id: 'acct-demo-employee-test',
       name: 'Demo Employee',
       email: 'employee@company.com',
-      password: 'Password@2026!',
+      password: 'TestOnly!12345',
       role: 'employee',
       department: 'IT',
       active: true,
