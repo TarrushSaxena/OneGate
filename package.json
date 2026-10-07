@@ -1,0 +1,28 @@
+{
+  "name": "onegate",
+  "version": "1.0.0",
+  "description": "OneGate - One Front Door for Everything | Enterprise AI Helpdesk, Multi-Agent Orchestration & Liquid Glass Workplace",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "start:backend": "cd backend && node server.js",
+    "start:ml": "python -m uvicorn app:app --host 127.0.0.1 --port 8000 --app-dir backend/ml/python_service",
+    "provision:demo": "node backend/scripts/provision-demo-accounts.js",
+    "test": "node backend/tests/ps18-01-migrations.test.js",
+    "test:all": "node backend/tests/run-all-tests.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.2",
+    "uuid": "^11.1.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}

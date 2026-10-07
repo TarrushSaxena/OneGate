@@ -1,0 +1,32 @@
+{
+  "id2label": {
+    "0": "Billing",
+    "1": "Customer Support",
+    "2": "Cybersecurity",
+    "3": "Data & Analytics",
+    "4": "Finance",
+    "5": "HR",
+    "6": "IT Support",
+    "7": "Investor Relations",
+    "8": "Legal",
+    "9": "Marketing",
+    "10": "Out of Scope",
+    "11": "Quality Assurance",
+    "12": "Unknown"
+  },
+  "label2id": {
+    "Billing": 0,
+    "Customer Support": 1,
+    "Cybersecurity": 2,
+    "Data & Analytics": 3,
+    "Finance": 4,
+    "HR": 5,
+    "IT Support": 6,
+    "Investor Relations": 7,
+    "Legal": 8,
+    "Marketing": 9,
+    "Out of Scope": 10,
+    "Quality Assurance": 11,
+    "Unknown": 12
+  }
+}

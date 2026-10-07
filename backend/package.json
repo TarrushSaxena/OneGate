@@ -1,0 +1,26 @@
+{
+  "name": "ps18-backend",
+  "version": "1.0.0",
+  "description": "PS18 One Front Door - AI Helpdesk Backend",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "start:ml": "python -m uvicorn app:app --host 127.0.0.1 --port 8000 --app-dir ml/python_service",
+    "provision:demo": "node scripts/provision-demo-accounts.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.2",
+    "uuid": "^11.1.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}

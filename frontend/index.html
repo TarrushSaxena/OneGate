@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="One Front Door for Everything — Intelligent enterprise AI helpdesk in Light Theme Liquid Glass.">
+  <title>One Front Door for Everything</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚪</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/light-glass.css">
+  <style>
+    #app {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--bg-canvas);
+    }
+    /* Routes own their viewport scroll; the app shell stays fixed. */
+    .page-container {
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    #toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    #toast-container > * {
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- Light Mode Ambient Canvas Background -->
+  <div class="light-mesh-bg"></div>
+
+  <!-- Main Application Root -->
+  <div id="app"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Socket.IO from CDN -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Reusable Components -->
+  <script src="components/GhostFibers.js"></script>
+  <script src="components/RubberSegment.js"></script>
+  <script src="components/LatticeLoader.js"></script>
+  <script src="components/PeekRating.js"></script>
+
+  <!-- Pages -->
+  <script src="pages/hero.js"></script>
+  <script src="pages/how-it-works.js"></script>
+  <script src="pages/login.js?v=20261006-demo-directory-1"></script>
+  <script src="pages/chat.js"></script>
+  <script src="pages/inbox.js"></script>
+  <script src="pages/manager.js"></script>
+  <script src="pages/history.js"></script>
+  <script src="pages/pilot.js?v=20261006-rendering-2"></script>
+  <link rel="stylesheet" href="pilot.css">
+  <link rel="stylesheet" href="styles/workspace-glass.css">
+  <link rel="stylesheet" href="styles/support-states.css">
+  <link rel="stylesheet" href="styles/assignment-card.css">
+  <link rel="stylesheet" href="styles/workspace-refresh.css">
+  <link rel="stylesheet" href="styles/entry-refresh.css?v=20261006-demo-directory-2">
+  <link rel="stylesheet" href="styles/layout-repairs.css?v=20261006-2">
+
+  <!-- Core App Controller & Router -->
+  <script src="app.js?v=20261006-rendering-2"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+/* Keep viewport ownership in the shell; content views own their scrolling. */
+.og-glass-work{width:100%;display:flex}
+.og-glass-work .og-main{min-width:0;flex:1}
+.og-glass-work #og-overview:not([hidden]){flex:1;min-height:0;width:100%;max-width:1480px;align-self:center;margin:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:clamp(16px,2vw,28px)}
+.og-main .policy-heading,.og-main .og-services-hero{display:block;margin:0 0 24px}
+.og-main .og-actions-hero{display:flex;align-items:flex-start;flex-wrap:wrap}
+.policy-page,.og-services-page,.og-actions-page{width:100%;max-width:1180px;margin-inline:auto;padding:0;min-width:0}
+.policy-heading h2{max-width:800px;font-size:clamp(28px,3.4vw,42px);line-height:1.15;letter-spacing:-1px}
+.policy-heading p{max-width:660px;line-height:1.6;font-size:15px}
+.policy-tools{flex-wrap:wrap;margin-block:20px;gap:12px}
+.policy-reader{display:block;min-height:420px;height:65dvh;width:100%;max-width:100%;border:1px solid #dce6d8}
+.policy-card p{font-size:14px;line-height:1.55;color:#617967}.policy-card small{font-size:11px;line-height:1.5}
+.og-service p{font-size:14px!important;line-height:1.55!important}.og-service h3{font-size:16px!important}.og-service time{font-size:12px}
+.og-service-group-head small{font-size:11px}.og-service-group-head strong{font-size:12px}.og-service button,.og-workplace-bottom button{min-height:42px;font-size:13px}
+.og-workplace-bottom p,.og-demo-disclaimer{font-size:13px;line-height:1.6}
+.og-actions-hero p{font-size:14px;line-height:1.6}.og-demo-strip{font-size:13px;line-height:1.6}
+.og-actions-filters button{min-height:42px;font-size:13px}.og-actions-filters span{font-size:11px}
+.og-action-history-card summary strong{font-size:16px}.og-action-history-card summary small{font-size:10px}.og-action-history-card summary em{font-size:13px;white-space:normal;line-height:1.5}.og-action-state{font-size:11px}
+.og-action-history-detail b{font-size:10px}.og-action-history-detail span,.og-action-history-detail p{font-size:13px;line-height:1.5}
+.og-main a:focus-visible,.og-main select:focus-visible,.hero-shell button:focus-visible,.auth-refresh button:focus-visible,.auth-refresh a:focus-visible{outline:3px solid #487b67;outline-offset:3px}
+.auth-refresh .auth-card #auth-card-title{color:#204332!important}.auth-refresh .auth-card #auth-card-desc{color:#607768!important}
+.auth-refresh{box-sizing:border-box}
+.og-main .policy-heading h2{font-size:clamp(28px,3.4vw,42px);line-height:1.15}
+.og-calendar-grid{grid-template-columns:repeat(7,minmax(0,1fr))}
+.og-cal-cell{min-width:0}
+@media(max-width:760px){
+  .route-stage{display:flex;flex-direction:column;gap:16px;width:100%;min-height:0;margin-bottom:48px}
+  .route-stage .route-card{position:relative;inset:auto;width:100%;box-sizing:border-box}
+  .route-stage .route-center,.route-stage .route-line,.route-stage .route-pulse{display:none}
+}
+@media(max-width:680px){
+  #app .og-glass-work .og-nav{max-height:none}
+  .og-calendar-grid{gap:4px}
+  .og-cal-cell{padding:5px 3px;min-height:76px}
+  .og-cal-pill{padding:2px;font-size:9px}
+  .og-glass-work.og-specialist{height:100%;min-height:0;overflow:hidden}
+  .og-glass-work.og-specialist .og-main{height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  .og-glass-work.og-specialist .og-grid{flex:1;min-height:0;height:auto}
+  .og-glass-work.og-specialist .og-thread{height:100%;min-height:0}
+  .og-glass-work.og-specialist .og-thread #og-messages{min-height:0;max-height:none}
+  .og-glass-work.og-specialist .og-main>header{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:8px;flex-shrink:0;margin-bottom:10px}
+  .og-glass-work.og-specialist .og-main>header .og-eyebrow{display:none}
+  .og-glass-work.og-specialist .og-main h1{font-size:17px}
+  .og-glass-work #og-overview:not([hidden]){padding:18px 16px;border-radius:18px}
+  .policy-reader{height:58dvh;min-height:340px}.policy-grid{gap:12px}.policy-card{padding:18px}
+  .og-actions-summary{min-width:0;text-align:left;padding:12px 16px}.og-actions-hero{gap:12px}
+  .og-action-history-detail{grid-template-columns:1fr}.og-main .og-actions-hero h2{font-size:29px}
+}

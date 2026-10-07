@@ -1,0 +1,174 @@
+example_id,query,department,example_type,difficulty,language_style,test_set
+RWHT-0001,vpn disconnected and wont reconnect,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0002,cant sign into email says wrong pass,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0003,wifi keeps dropping every 5 mins on 3rd floor,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0004,my laptop screen is completely frozen during zoom call,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0005,need admin password to install docker on mac,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0006,i think my account got hacked someone sent emails from my address,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0007,received weird email asking me to click link and verify payroll,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0008,vpn error code 800 remote connection failed,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0009,found USB drive in parking lot where should i hand it in,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0010,outlook search bar completely missing after update,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0011,who do i ask about taking my work laptop out of country,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0012,printer jammed and display says error 49,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0013,i got a notification that my password was reset but i didnt do it,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0014,slack wont let me upload files over 10mb,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0015,monitor screen flickering green lines across desktop,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0016,authenticator app 2fa codes not working for SSO,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0017,my screen locked itself and shows a strange ransom note,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0018,need permission to access marketing shared drive folder,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0019,got SMS asking for my okta push verification code,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0020,how do i request a second monitor for my desk,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0021,who should i contact?,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0022,im not sure where this belongs,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0023,hello anyone there?,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0024,quick question,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0025,can someone assist me today,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0026,where do i go for general stuff,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0027,having issues here,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0028,not working,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0029,need info on policy and also my pay slip is wrong,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0030,how do i submit expense report for business lunch and change direct deposit details,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0031,my laptop key broken and i need to book vacation leave,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0032,wfh policy allowance reimbursement,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0033,want to update my home address and request ergonomic chair,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0034,vaxination policy for corporate travel,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0035,passord reset link expired,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0036,moniter power cable missing from new desk,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0037,sybersecurity training deadline extension,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0038,need software license for adobe creative cloud,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0039,can i purchase software using my own card and get reimbursed,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0040,is figma approved by security team for external client data,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0041,requesting access to financial reporting database,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0042,audit log export for financial records from last quarter,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0043,how do i refer a friend for software developer position,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0044,how do i claim 401k employer match contribution,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0045,reimbursement status for flight ticket booked last week,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0046,legal NDA template for new vendor vendor contract,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0047,can I sign agreement on behalf of my department manager,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0048,review customer contract redlines before final signature,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0049,report potential copyright issue on company public blog,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0050,guidelines on sharing company logo with external media,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0051,guest wifi password for client visiting office tomorrow,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0052,setting up corporate email on personal iphone,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0053,macbook battery draining super fast after OS update,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0054,need docking station and dual ethernet cable setup,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0055,excel crashes whenever opening large pivot table csv,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0056,bluetooth headset wont pair with laptop windows 11,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0057,clear chrome cache browser history remote session,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0058,need temporary laptop loaner while mine is being repaired,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0059,keyboard keys sticking e and spacebar,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0060,network port under desk seems dead no link light,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0061,someone emailed asking to change vendor bank account details,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0062,pop up on browser says virus detected call number immediately,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0063,lost my company badge and laptop bag on train,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0064,suspicious login attempt alert from foreign IP address,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0065,need to send encrypted file containing sensitive employee SSNs,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0066,security review for new third party chrome extension,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0067,employee termination revoke all system permissions immediately,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0068,phishing simulation reporting error false positive,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0069,parental leave duration and pay policy details,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0070,performance review submission form closed early,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0071,how to update emergency contact phone number in system,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0072,bereavement leave policy guidelines and notice period,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0073,medical insurance card digital copy download link,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0074,corporate card application form for business travel,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0075,per diem rates for international business trips,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0076,concur expense report status pending approval,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0077,purchase order creation for hardware vendor invoice,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0078,missing receipt replacement process for expenses under 25,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0079,requesting access to salesforce production environment,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0080,salesforce license downgrade process,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0081,how to export sales leads list from CRM without watermark,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0082,branding guidelines for social media post graphics,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0083,request trade show booth banner design and printing,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0084,press release review process before public distribution,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0085,need branded merchandise pens and notebooks for client meeting,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0086,non compete agreement clause clarification,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0087,subpoena received via mail regarding former client,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0088,patent application status update for company IP,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0089,terms of service modification review for mobile app,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0090,request software engineering team expansion headcount,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0091,conference room TV display input source wrong remote missing,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0092,laptop charger overheating and emitting smoke smells,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0093,external hard drive encrypted cannot unlock with bitlocker key,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0094,outlook calendar invites not syncing with mobile app,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0095,teams audio microphone not detected by device manager,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0096,need VS Code extensions white-listed for internal dev,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0097,vpn connection drops as soon as i lock my laptop,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0098,vpn DNS lookup failed error on home connection,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0099,wifi credentials prompt popping up constantly,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0100,cant connect to office printer over local subnet,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0101,need local admin privileges to run local database server,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0102,security alert unauthorized device detected on office local network,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0103,received email from CEO asking to buy gift cards urgently,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0104,found suspicious executable file downloaded in shared folder,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0105,laptop stolen from parked car over weekend,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0106,my password expired but password reset portal is throwing 500 error,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0107,forgot password bitlocker recovery key needed,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0108,need multi factor authentication reset after getting new phone,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0109,computer running extremely slow task manager shows 100 cpu usage,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0110,software update stuck at 99 percent for three hours,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0111,need wireless mouse replacement battery,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0112,need help,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0113,question about stuff,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0114,issue regarding item,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0115,who handles matters,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0116,something is wrong,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0117,assistance needed urgently,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0118,to whom it may concern,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0119,random question,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0120,pls reply,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0121,how do i submit feedback on internal management,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0122,reimbursement for internet bill during remote work period,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0123,travel insurance coverage details for corporate trip,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0124,flight cancellation refund policy corporate travel portal,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0125,contractor onboarding computer setup request,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0126,contractor NDA and background check confirmation,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0127,contractor daily rate payment approval workflow,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0128,vpn split tunneling configuration for home office,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0129,wifi network name SSID not appearing in available networks list,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0130,password complexity requirements mandatory special characters,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0131,device encrytion status check for compliance audit,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0132,software installation request python 3 11 environment,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0133,vpn certificate expired error code 403,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0134,wifi password changed on enterprise network how to update laptop,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0135,locked out of active directory domain account,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0136,dell laptop touchpad gesture clicks stopped working,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0137,chrome enterprise policy blocking extension install,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0138,received phishing test email and reported it by mistake,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0139,suspicious file attached in email from known contact,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0140,unauthorized access attempt logged on remote desktop session,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0141,lost company issued iphone while traveling,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0142,data privacy compliance GDPR policy request,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0143,how to report workplace harassment or discrimination safely,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0144,vendor payment net 30 invoice processing status,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0145,company wide newsletter submission guidelines,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0146,patent agreement intellectual property assignment document,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0147,vpn speeds extremely slow when connected to server east,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0148,wifi network auth error incorrect security key,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0149,password vault manager access request Bitwarden enterprise,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0150,device webcam not showing up in system settings,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0151,software license key expired for JetBrains IDE,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0152,unusual network outbound traffic alert from my machine,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0153,email signature design guidelines and brand assets,Marketing,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0154,tuition reimbursement program eligibility criteria,HR,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0155,client agreement non disclosure format,Legal,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0156,travel allowance advance request for sales summit,Finance,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0157,laptop sound card not playing audio through headphone jack,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0158,vpn global protect agent fails to load driver,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0159,secure corporate wifi dropping signal on macbook air,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0160,password reset SMS not sending to mobile number,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0161,device display resolution stuck at 1024x768,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0162,software installation file quarantined by windows defender,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0163,security incident response plan documentation location,Cybersecurity,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0164,hr portal user profile picture update error,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0165,conference room booking conflict on outlook calendar,IT Support,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0166,what is this for,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0167,who can help me with this task,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0168,i have a general query,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0169,unsure about procedure,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0170,need quick assistance on something,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0171,not sure which team handles this,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0172,i dont know where to start with this,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1
+RWHT-0173,can someone point me to the right place,Unknown,real_world_hard,very_hard,natural_user,real_world_hard_test_v1

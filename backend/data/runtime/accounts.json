@@ -1,0 +1,699 @@
+[
+  {
+    "id": "acct-main-dir",
+    "email": "director.exec@company.com",
+    "name": "Executive Director",
+    "role": "main_manager",
+    "department": "All",
+    "tier": "L3",
+    "skill_tags": [
+      "leadership",
+      "operations"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.298Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.492Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-main-mgr",
+    "email": "main.manager@company.com",
+    "name": "Global Operations Manager",
+    "role": "main_manager",
+    "department": "All",
+    "tier": "L3",
+    "skill_tags": [
+      "governance",
+      "operations"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.308Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:35:04.869Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-tarrush",
+    "email": "tarrushsaxena@gmail.com",
+    "name": "Tarrush Saxena",
+    "role": "department_manager",
+    "department": "IT",
+    "tier": "L3",
+    "skill_tags": [
+      "lead"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.308Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.527Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-mgr-it",
+    "email": "it.manager@company.com",
+    "name": "IT Operations Head",
+    "role": "department_manager",
+    "department": "IT",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "it"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.539Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-it",
+    "email": "it.support@company.com",
+    "name": "IT Support Specialist",
+    "role": "support_executive",
+    "department": "IT",
+    "tier": "L3",
+    "skill_tags": [
+      "it"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.676Z",
+    "current_load": 0,
+    "status": "busy",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-hr",
+    "email": "hr.manager@company.com",
+    "name": "HR Director",
+    "role": "department_manager",
+    "department": "HR",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "hr"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.553Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-hr",
+    "email": "hr.support@company.com",
+    "name": "Ananya Roy",
+    "role": "support_executive",
+    "department": "HR",
+    "tier": "L2",
+    "skill_tags": [
+      "hr"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.711Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-finance",
+    "email": "finance.manager@company.com",
+    "name": "Finance Controller",
+    "role": "department_manager",
+    "department": "Finance",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "finance"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.566Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-finance",
+    "email": "finance.support@company.com",
+    "name": "Vikram Mehta",
+    "role": "support_executive",
+    "department": "Finance",
+    "tier": "L2",
+    "skill_tags": [
+      "finance"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:32:35.103Z",
+    "current_load": 0,
+    "status": "busy",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-billing",
+    "email": "billing.manager@company.com",
+    "name": "Billing Operations Lead",
+    "role": "department_manager",
+    "department": "Billing",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "billing"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.578Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-billing",
+    "email": "billing.support@company.com",
+    "name": "Neha Gupta",
+    "role": "support_executive",
+    "department": "Billing",
+    "tier": "L2",
+    "skill_tags": [
+      "billing"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.731Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-customersupport",
+    "email": "customersupport.manager@company.com",
+    "name": "Customer Support Manager",
+    "role": "department_manager",
+    "department": "Customer Support",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "customer support"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.591Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-customersupport",
+    "email": "customersupport.support@company.com",
+    "name": "Arjun Das",
+    "role": "support_executive",
+    "department": "Customer Support",
+    "tier": "L2",
+    "skill_tags": [
+      "customer support"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.742Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-cybersecurity",
+    "email": "cybersecurity.manager@company.com",
+    "name": "Chief InfoSec Officer",
+    "role": "department_manager",
+    "department": "Cybersecurity",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "cybersecurity"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.608Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-cybersecurity",
+    "email": "cybersecurity.support@company.com",
+    "name": "Kabir Rao",
+    "role": "support_executive",
+    "department": "Cybersecurity",
+    "tier": "L3",
+    "skill_tags": [
+      "cybersecurity"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.752Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-dataanalytics",
+    "email": "dataanalytics.manager@company.com",
+    "name": "Data Analytics Lead",
+    "role": "department_manager",
+    "department": "Data & Analytics",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "data & analytics"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.621Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-dataanalytics",
+    "email": "dataanalytics.support@company.com",
+    "name": "Sneha Patel",
+    "role": "support_executive",
+    "department": "Data & Analytics",
+    "tier": "L2",
+    "skill_tags": [
+      "data & analytics"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.762Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-investorrelations",
+    "email": "investorrelations.manager@company.com",
+    "name": "IR Director",
+    "role": "department_manager",
+    "department": "Investor Relations",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "investor relations"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.634Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-investorrelations",
+    "email": "investorrelations.support@company.com",
+    "name": "Rohan Singhania",
+    "role": "support_executive",
+    "department": "Investor Relations",
+    "tier": "L2",
+    "skill_tags": [
+      "investor relations"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.770Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-legal",
+    "email": "legal.manager@company.com",
+    "name": "General Counsel",
+    "role": "department_manager",
+    "department": "Legal",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "legal"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.644Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-legal",
+    "email": "legal.support@company.com",
+    "name": "Meera Nambiar",
+    "role": "support_executive",
+    "department": "Legal",
+    "tier": "L3",
+    "skill_tags": [
+      "legal"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:29:15.495Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-marketing",
+    "email": "marketing.manager@company.com",
+    "name": "Marketing VP",
+    "role": "department_manager",
+    "department": "Marketing",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "marketing"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.654Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-marketing",
+    "email": "marketing.support@company.com",
+    "name": "Aditya Sen",
+    "role": "support_executive",
+    "department": "Marketing",
+    "tier": "L2",
+    "skill_tags": [
+      "marketing"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.309Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.790Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-mgr-qualityassurance",
+    "email": "qualityassurance.manager@company.com",
+    "name": "QA Director",
+    "role": "department_manager",
+    "department": "Quality Assurance",
+    "tier": "L3",
+    "skill_tags": [
+      "management",
+      "quality assurance"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.310Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:29:16.965Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  },
+  {
+    "id": "acct-supp-qualityassurance",
+    "email": "qualityassurance.support@company.com",
+    "name": "Tanvi Joshi",
+    "role": "support_executive",
+    "department": "Quality Assurance",
+    "tier": "L2",
+    "skill_tags": [
+      "quality assurance"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.310Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.800Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-46bf2197",
+    "email": "priya.sharma@company.com",
+    "name": "Priya Sharma",
+    "role": "support_executive",
+    "department": "IT",
+    "tier": "L3",
+    "skill_tags": [
+      "hardware",
+      "network"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2024-03-11T09:00:00.000Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.688Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-7f6b1de4",
+    "email": "rahul.verma@company.com",
+    "name": "Rahul Verma",
+    "role": "support_executive",
+    "department": "IT",
+    "tier": "L1",
+    "skill_tags": [
+      "frontline"
+    ],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2025-01-15T09:00:00.000Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:25:27.701Z",
+    "current_load": 0,
+    "status": "offline",
+    "rolling_score": 5,
+    "work_mode": "office"
+  },
+  {
+    "id": "acct-emp-demo",
+    "email": "employee@company.com",
+    "name": "Demo Employee",
+    "role": "employee",
+    "department": "IT",
+    "tier": "L1",
+    "skill_tags": [],
+    "password_hash": "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi",
+    "password_history": [
+      "$2a$10$RUQkCHZ54GKYrFq5eDua4.yTBICU7Yl8oBkftlNLHvACGRTdktpPi"
+    ],
+    "must_change_password": false,
+    "token_version": 1,
+    "active": true,
+    "created_at": "2026-10-05T05:29:34.310Z",
+    "created_by": "system",
+    "last_login_at": "2026-10-06T13:37:11.577Z",
+    "current_load": 0,
+    "status": "online",
+    "rolling_score": 5
+  }
+]

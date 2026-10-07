@@ -1,0 +1,31 @@
+/* Color + written status + icon: never communicate meaning through color alone. */
+.og-glass-work{--state-ink:#34644f;--state-tint:#edf6ee;--state-edge:#c8dfce}
+.og-glass-work[data-state=thinking]{--state-ink:#695098;--state-tint:#f2edff;--state-edge:#d8c9f2}
+.og-glass-work[data-state=routing],.og-glass-work[data-state=rerouted]{--state-ink:#315e98;--state-tint:#eaf3ff;--state-edge:#bed5f0}
+.og-glass-work[data-state=assigning],.og-glass-work[data-state=queued]{--state-ink:#84601f;--state-tint:#fff6df;--state-edge:#e5d19d}
+.og-glass-work[data-state=assigned],.og-glass-work[data-state=delivering]{--state-ink:#256b73;--state-tint:#e5f5f5;--state-edge:#b8dbdf}
+.og-glass-work[data-state=waiting],.og-glass-work[data-state=escalated]{--state-ink:#9a512d;--state-tint:#fff0e5;--state-edge:#edc8b0}
+.og-glass-work[data-state=resolved]{--state-ink:#346444;--state-tint:#ebf6e9;--state-edge:#c6ddbc}
+.og-glass-work[data-state=self-service]{--state-ink:#695098;--state-tint:#f2edff;--state-edge:#d8c9f2}
+.og-glass-work .og-route-card{background:linear-gradient(120deg,var(--state-tint),#ffffffb8);border-color:var(--state-edge);box-shadow:inset 0 1px #fff,0 6px 20px #254c3006;transition:background .3s,border-color .3s}
+.og-glass-work .og-status-pill{color:var(--state-ink);border-color:var(--state-edge);background:var(--state-tint);font-weight:600;white-space:nowrap}
+.og-glass-work .og-route-steps .is-done,.og-glass-work .og-route-person strong{color:var(--state-ink)}
+.og-glass-work .og-mini-avatar{color:var(--state-ink);background:var(--state-tint);border-color:var(--state-edge)}
+.og-glass-work .og-ticket-heading .og-wrong-team{font-size:9px;padding:4px 6px;color:#62766a;border:0;background:transparent;text-decoration:underline;text-decoration-color:#adbdb0;text-underline-offset:3px;box-shadow:none}
+.og-glass-work .og-ticket-heading .og-wrong-team:hover{color:#315e98;background:#eaf3ff}
+.og-glass-work .og-routing-why{font-size:10px;color:var(--state-ink);margin-top:12px;padding-top:10px;border-top:1px solid var(--state-edge)}
+.og-routing-why summary{cursor:pointer;list-style-position:inside}.og-routing-why p{padding-top:5px;line-height:1.7}
+.og-glass-work #og-thinking{position:relative;overflow:hidden;padding:14px 18px;border-radius:15px;background:linear-gradient(110deg,#f3edff,#eaf5ff,#e5f5ed,#f3edff);background-size:240% 100%;border:1px solid var(--state-edge);box-shadow:inset 0 1px white,0 6px 22px #7771ab0c;animation:og-gradient-drift 5s ease-in-out infinite;transition:transform .25s,box-shadow .25s}
+.og-glass-work #og-thinking:hover{transform:translateY(-2px);box-shadow:inset 0 1px white,0 10px 26px #7771ab18}
+.og-glass-work #og-thinking .lattice-label-wrap{color:var(--state-ink)!important;line-height:1.5}.og-glass-work #og-thinking .lattice-cell{background:var(--state-ink)}
+.og-glass-work #og-thinking::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 35%,#ffffff80 50%,transparent 65%);transform:translateX(-130%);animation:og-reflection 4s ease-in-out infinite}
+.og-glass-work #og-thinking[data-state=assigning]{background:linear-gradient(110deg,#fff6df,#fff0e3,#f4f6dc);background-size:240% 100%}
+.og-glass-work #og-thinking[data-state=routing]{background:linear-gradient(110deg,#edf1ff,#e5f6ff,#eef0fb);background-size:240% 100%}
+.og-glass-work .og-suggestions button:hover,.og-glass-work #og-connect:hover{border-color:#c7c9e1;color:#58567d;background:linear-gradient(110deg,#f0edff,#edf8f2);box-shadow:0 4px 15px #5959850c}
+.og-glass-work #og-connect{border:1px solid #d5e2da;border-radius:99px;padding:8px 12px;background:#ffffff9c;transition:background .25s,transform .25s,box-shadow .25s}.og-glass-work #og-connect:hover{transform:translateY(-1px)}
+.og-glass-work .og-message.og-event{border-left:3px solid var(--state-edge)}
+.og-glass-work .og-thread #og-actions button:hover{background:var(--state-tint);border-color:var(--state-edge);color:var(--state-ink);transform:translateY(-1px)}
+@keyframes og-gradient-drift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes og-reflection{0%,30%{transform:translateX(-130%)}80%,100%{transform:translateX(130%)}}
+@media(max-width:680px){.og-glass-work .og-ticket-heading{flex-wrap:wrap;gap:5px}.og-glass-work .og-ticket-heading .og-wrong-team{margin-left:auto}.og-glass-work #og-thinking{padding:10px 12px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.og-glass-work #og-thinking,.og-glass-work #og-thinking::after{animation:none!important}.og-glass-work #og-thinking:hover,.og-glass-work #og-connect:hover{transform:none}}
