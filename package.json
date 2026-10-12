@@ -1,7 +1,7 @@
 {
   "name": "onegate",
   "version": "1.0.0",
-  "description": "OneGate - One Front Door for Everything | Enterprise AI Helpdesk, Multi-Agent Orchestration & Liquid Glass Workplace",
+  "description": "OneGate SME - permission-tiered AI finance copilot for small businesses (FinTechathon 2026, Topic E), built on the OneGate platform",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
