@@ -345,10 +345,11 @@ Copy `.env.example` to `.env` and fill in your own values. `.env` is never commi
 - `POST /api/chat/message`: Send an inquiry through the One Front Door conversational pipeline.
 - `GET  /api/policies`: Retrieve indexed corporate policy articles and link to handbook PDF.
 - `GET  /api/policies/handbook.pdf`: Streams the complete master enterprise policy handbook.
-- `GET  /api/pilot/tickets`: Fetches tickets filtered by user role and department.
-- `POST /api/pilot/attendance/swipe`: Simulates an RFID door badge swipe for live clock-in.
-- `POST /api/pilot/emergency/sos`: Instant emergency alert bypass directly to security and managers.
-- `POST /api/pilot/badge/deactivate`: Deactivates lost/compromised RFID badge instantly.
+- `GET  /api/tickets`: Fetches tickets filtered by user role and department.
+- `GET  /api/pilot/dashboard`: Manager and director dashboard metrics.
+- `POST /api/corporate/swipes/simulate`: Simulates an RFID door badge swipe for live clock-in.
+- `POST /api/corporate/emergency/sos`: Instant emergency alert bypass directly to security and managers.
+- `POST /api/corporate/id-cards/report-lost`: Deactivates a lost or compromised RFID badge instantly and opens a replacement ticket.
 
 ### Real-Time WebSocket Events (`Socket.IO`)
 
