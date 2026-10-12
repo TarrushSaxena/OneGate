@@ -1,9 +1,15 @@
 const accountStore = require('../auth/accountStore');
 const { DEMO_MODE } = require('../auth/config');
 const { DEMO_ACCOUNTS } = require('../data/demo-accounts');
+const crypto = require('crypto');
 const { verifyPassword } = require('../auth/passwords');
 
-const MASTER_DEMO_PASSWORD = 'Password@2026!';
+// No shared password lives in the repo. Set DEMO_PASSWORD for a stable value on a
+// private demo box; otherwise a random one is generated per run and printed once.
+// Day-to-day demos use passwordless one-click demo login (dev only, see DEMO_ACCESS.md).
+const MASTER_DEMO_PASSWORD = process.env.DEMO_PASSWORD || `Demo-${crypto.randomBytes(9).toString('base64url')}!`;
+const PASSWORD_FROM_ENV = Boolean(process.env.DEMO_PASSWORD);
+if (PASSWORD_FROM_ENV && MASTER_DEMO_PASSWORD.length < 12) throw new Error('DEMO_PASSWORD must be at least 12 characters');
 
 async function provisionDemoAccounts() {
   if (!DEMO_MODE) throw new Error('Demo account provisioning is disabled');
@@ -23,7 +29,8 @@ async function provisionDemoAccounts() {
       continue;
     }
 
-    const passwordMatches = await verifyPassword(MASTER_DEMO_PASSWORD, existing.password_hash);
+    // Without DEMO_PASSWORD, never rotate an existing account's password on re-runs.
+    const passwordMatches = PASSWORD_FROM_ENV ? await verifyPassword(MASTER_DEMO_PASSWORD, existing.password_hash) : true;
     const profileMatches = existing.name === definition.name &&
       existing.role === definition.role && existing.department === definition.department &&
       existing.tier === definition.tier && existing.active !== false && !existing.must_change_password &&
@@ -52,7 +59,10 @@ async function provisionDemoAccounts() {
 
 if (require.main === module) {
   provisionDemoAccounts()
-    .then(result => console.log(`Demo accounts ready: ${result.total} total, ${result.created} created, ${result.repaired} repaired, ${result.unchanged} unchanged.`))
+    .then(result => {
+      console.log(`Demo accounts ready: ${result.total} total, ${result.created} created, ${result.repaired} repaired, ${result.unchanged} unchanged.`);
+      if (result.created && !PASSWORD_FROM_ENV) console.log(`Password for newly created demo accounts (shown once, not stored): ${MASTER_DEMO_PASSWORD}`);
+    })
     .catch(error => { console.error(error.message); process.exit(1); });
 }
 
