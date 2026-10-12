@@ -259,10 +259,9 @@ python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 
 ## 🔑 Credentials & Role Access Matrix
 
-OneGate includes **28 pre-configured accounts** across 4 enterprise tiers with full RBAC isolation.
+OneGate includes **33 pre-configured demo accounts**: 28 across 4 enterprise tiers with full RBAC isolation, plus 5 SME Finance Copilot users (see `DEMO_ACCESS.md`).
 
-> **Universal Master Password for All Accounts:**  
-> 🗝️ **`TestOnly!12345`**
+> **No passwords are published in this repository.** In development (`DEMO_MODE=true`, never in production) use the one-click **Quick Demo Access** below. To enable password login on a private demo box, run `DEMO_PASSWORD='<your-own-12+-char-secret>' npm run provision:demo` in `backend/`; without `DEMO_PASSWORD` a random password is generated and printed once. See [`DEMO_ACCESS.md`](DEMO_ACCESS.md).
 
 ### ⚡ Quick Demo Access
 When visiting `http://localhost:3000/index.html`, click **Sign In** and use the **Quick Demo Access** dropdown to instantly log in as any role without typing passwords.
@@ -272,59 +271,59 @@ When visiting `http://localhost:3000/index.html`, click **Sign In** and use the 
 ### 1. Executive / Main Managers (`/app/org`)
 *Cross-department oversight, SLA heatmaps, employee roster inspection, audit trails.*
 
-| Role | Name | Email | Password | Console Route |
-|---|---|---|---|---|
-| **Executive Director** | Executive Director | `director.exec@company.com` | `TestOnly!12345` | `/app/org` |
-| **Global Operations Manager** | Global Operations Manager | `main.manager@company.com` | `TestOnly!12345` | `/app/org` |
+| Role | Name | Email | Console Route |
+|---|---|---|---|
+| **Executive Director** | Executive Director | `director.exec@company.com` | `/app/org` |
+| **Global Operations Manager** | Global Operations Manager | `main.manager@company.com` | `/app/org` |
 
 ---
 
 ### 2. Department Managers (`/app/department`)
 *Department-scoped ticket queue, attendance swipe clock-ins, leave approval queue, workload balancing, department broadcast announcements.*
 
-| Department | Manager Title | Work Email | Password |
-|---|---|---|---|
-| **IT Support** | IT Operations Head | `it.manager@company.com` | `TestOnly!12345` |
-| **IT Support (Personal Lead)** | Tarrush Saxena | `tarrushsaxena@gmail.com` | `TestOnly!12345` |
-| **Human Resources (HR)** | HR Director | `hr.manager@company.com` | `TestOnly!12345` |
-| **Finance & Accounts** | Finance Controller | `finance.manager@company.com` | `TestOnly!12345` |
-| **Billing & Invoicing** | Billing Operations Lead | `billing.manager@company.com` | `TestOnly!12345` |
-| **Customer Support** | Customer Support Manager | `customersupport.manager@company.com` | `TestOnly!12345` |
-| **Cybersecurity & InfoSec** | Chief InfoSec Officer | `cybersecurity.manager@company.com` | `TestOnly!12345` |
-| **Data & Analytics** | Data Analytics Lead | `dataanalytics.manager@company.com` | `TestOnly!12345` |
-| **Investor Relations** | IR Director | `investorrelations.manager@company.com` | `TestOnly!12345` |
-| **Legal & Compliance** | General Counsel | `legal.manager@company.com` | `TestOnly!12345` |
-| **Marketing & Brand** | Marketing VP | `marketing.manager@company.com` | `TestOnly!12345` |
-| **Quality Assurance (QA)** | QA Director | `qualityassurance.manager@company.com` | `TestOnly!12345` |
+| Department | Manager Title | Work Email |
+|---|---|---|
+| **IT Support** | IT Operations Head | `it.manager@company.com` |
+| **IT Support (Personal Lead)** | Tarrush Saxena | `tarrushsaxena@gmail.com` |
+| **Human Resources (HR)** | HR Director | `hr.manager@company.com` |
+| **Finance & Accounts** | Finance Controller | `finance.manager@company.com` |
+| **Billing & Invoicing** | Billing Operations Lead | `billing.manager@company.com` |
+| **Customer Support** | Customer Support Manager | `customersupport.manager@company.com` |
+| **Cybersecurity & InfoSec** | Chief InfoSec Officer | `cybersecurity.manager@company.com` |
+| **Data & Analytics** | Data Analytics Lead | `dataanalytics.manager@company.com` |
+| **Investor Relations** | IR Director | `investorrelations.manager@company.com` |
+| **Legal & Compliance** | General Counsel | `legal.manager@company.com` |
+| **Marketing & Brand** | Marketing VP | `marketing.manager@company.com` |
+| **Quality Assurance (QA)** | QA Director | `qualityassurance.manager@company.com` |
 
 ---
 
 ### 3. Department Specialists (`/app/inbox`)
 *Live ticket assignment workbench, status toggles (Online, Busy, Away, Offline), warm handoff notes.*
 
-| Department | Specialist Name | Tier | Work Email | Password |
-|---|---|---|---|---|
-| **IT Support** | Priya Sharma | L3 Senior Lead | `priya.sharma@company.com` | `TestOnly!12345` |
-| **IT Support** | Rahul Verma | L1 Frontline | `rahul.verma@company.com` | `TestOnly!12345` |
-| **Human Resources** | Ananya Roy | L2 Specialist | `hr.support@company.com` | `TestOnly!12345` |
-| **Finance & Accounts** | Vikram Mehta | L2 Specialist | `finance.support@company.com` | `TestOnly!12345` |
-| **Billing & Invoicing** | Neha Gupta | L2 Specialist | `billing.support@company.com` | `TestOnly!12345` |
-| **Customer Support** | Arjun Das | L2 Specialist | `customersupport.support@company.com` | `TestOnly!12345` |
-| **Cybersecurity** | Kabir Rao | L3 Senior Lead | `cybersecurity.support@company.com` | `TestOnly!12345` |
-| **Data & Analytics** | Sneha Patel | L2 Specialist | `dataanalytics.support@company.com` | `TestOnly!12345` |
-| **Investor Relations** | Rohan Singhania | L2 Specialist | `investorrelations.support@company.com` | `TestOnly!12345` |
-| **Legal & Compliance** | Meera Nambiar | L3 Senior Lead | `legal.support@company.com` | `TestOnly!12345` |
-| **Marketing & Brand** | Aditya Sen | L2 Specialist | `marketing.support@company.com` | `TestOnly!12345` |
-| **Quality Assurance** | Tanvi Joshi | L2 Specialist | `qualityassurance.support@company.com` | `TestOnly!12345` |
+| Department | Specialist Name | Tier | Work Email |
+|---|---|---|---|
+| **IT Support** | Priya Sharma | L3 Senior Lead | `priya.sharma@company.com` |
+| **IT Support** | Rahul Verma | L1 Frontline | `rahul.verma@company.com` |
+| **Human Resources** | Ananya Roy | L2 Specialist | `hr.support@company.com` |
+| **Finance & Accounts** | Vikram Mehta | L2 Specialist | `finance.support@company.com` |
+| **Billing & Invoicing** | Neha Gupta | L2 Specialist | `billing.support@company.com` |
+| **Customer Support** | Arjun Das | L2 Specialist | `customersupport.support@company.com` |
+| **Cybersecurity** | Kabir Rao | L3 Senior Lead | `cybersecurity.support@company.com` |
+| **Data & Analytics** | Sneha Patel | L2 Specialist | `dataanalytics.support@company.com` |
+| **Investor Relations** | Rohan Singhania | L2 Specialist | `investorrelations.support@company.com` |
+| **Legal & Compliance** | Meera Nambiar | L3 Senior Lead | `legal.support@company.com` |
+| **Marketing & Brand** | Aditya Sen | L2 Specialist | `marketing.support@company.com` |
+| **Quality Assurance** | Tanvi Joshi | L2 Specialist | `qualityassurance.support@company.com` |
 
 ---
 
 ### 4. Employee Helpdesk Requester (`/app/chat`)
 *One Front Door conversational AI chat, live SLA tracking, self-service deflection.*
 
-| Role | Name | Department | Work Email | Password |
-|---|---|---|---|---|
-| **Employee** | Demo Employee | IT | `employee@company.com` | `TestOnly!12345` |
+| Role | Name | Department | Work Email |
+|---|---|---|---|
+| **Employee** | Demo Employee | IT | `employee@company.com` |
 
 ---
 
@@ -431,7 +430,7 @@ OneGate/
 ├── start-ml.ps1                 # Windows ML microservice launcher
 ├── start-backend.sh             # macOS/Linux backend launcher
 ├── start-ml.sh                  # macOS/Linux ML microservice launcher
-├── DEPARTMENT_CREDENTIALS.md    # Complete login directory & passwords
+├── DEMO_ACCESS.md               # How to sign in to demo accounts (no passwords stored)
 ├── ML_INTEGRATION_GUIDE.md      # Detailed ML microservice technical guide
 └── README.md                    # Project documentation
 ```
