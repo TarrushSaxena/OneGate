@@ -25,4 +25,4 @@ Never commit the password you choose. Use a different value for every deployment
 | SME Owner · PixelForge Studio | `owner.pixelforge@company.com` | owner | full, own tenant only |
 | SME Viewer · PixelForge Studio | `viewer.pixelforge@company.com` | viewer | read only |
 
-The platform accounts (managers, specialists, employee) are listed in the README.
+The platform accounts (managers, specialists, employee) are listed in [`docs/helpdesk/README.md`](docs/helpdesk/README.md).
