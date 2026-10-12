@@ -38,6 +38,8 @@
 
 A permission-tiered AI finance copilot for small businesses, built on OneGate's security core. It provides 30/60/90-day cash-flow forecasts, risk-ranked overdue receivables, reminder drafts, explainable financing matching, and sandbox payments and loan applications that **always require the owner's approval**. It adds prompt-injection and phishing defences, tenant isolation and a hash-chained audit log. Synthetic sandbox data only.
 
+🖥️ Dashboard: `http://localhost:3000/sme.html` (after `npm run provision:demo`)
+
 ➡️ Full docs: [`docs/SME_COPILOT.md`](docs/SME_COPILOT.md) · Evidence: [`docs/sandbox-evidence/SUMMARY.md`](docs/sandbox-evidence/SUMMARY.md) · Code: `backend/sme/`
 
 ---
