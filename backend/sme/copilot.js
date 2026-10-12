@@ -105,7 +105,7 @@ function handle({ tenantId, actor, message }) {
     const p = actions.propose({ tenantId, actor, type: 'schedule_payment', params: { amount: bill.amount, beneficiary_id: ben.id, bill_id: bill.id, date: bill.due }, source: 'copilot' });
     if (p.denied) out.reply = `I can’t schedule that payment: ${p.verdict.reasons.join(', ')}.`;
     else {
-      out.reply = `Payment of ${fmt(bill.amount)} to ${ben.name} (${ben.account_masked}) for ${bill.due} is ready for owner approval.` + (p.action.warnings.length ? ` Note: ${p.action.warnings.join('; ')}.` : '');
+      out.reply = `Payment of ${fmt(bill.amount)} to ${ben.name} (${ben.account_masked}) for ${bill.due} is ready for owner approval.` + (p.action.warnings.length ? ` Heads up: ${p.action.warnings.join('; ').replace(/_/g, ' ')}.` : '');
       out.cards.push({ type: 'approval', action: p.action });
     }
   }
