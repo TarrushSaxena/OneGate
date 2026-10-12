@@ -44,6 +44,8 @@ A permission-tiered AI finance copilot for small businesses, built on OneGate's 
 
 🛡️ Security self-assessment: [`docs/SECURITY_SELF_ASSESSMENT.md`](docs/SECURITY_SELF_ASSESSMENT.md)
 
+🎤 Pitch deck and submission index: [`docs/submission/SUBMISSION.md`](docs/submission/SUBMISSION.md) · [Deck, tech doc and security PDFs (Google Drive)](https://drive.google.com/drive/folders/1sksHP-oYGp0sC7nAqAZzvl535y9GnbHF)
+
 ➡️ Full docs: [`docs/SME_COPILOT.md`](docs/SME_COPILOT.md) · Evidence: [`docs/sandbox-evidence/SUMMARY.md`](docs/sandbox-evidence/SUMMARY.md) · Code: `backend/sme/`
 
 ---
