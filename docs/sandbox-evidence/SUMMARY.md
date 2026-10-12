@@ -1,6 +1,6 @@
 # OneGate SME: sandbox execution evidence
 
-Run ID: `2026-10-12T09-37-48-555Z`. Sandbox date: 2026-10-12. Synthetic data only, and no real money or messages leave the sandbox.
+Run ID: `2026-10-12T09-38-30-262Z`. Sandbox date: 2026-10-12. Synthetic data only, and no real money or messages leave the sandbox.
 
 | SME | Cash today | 30d base (low to high) | 90d base | Backtest MAPE (30d) | Overdue | Attacks blocked | Phishing warned | Policy denials | Owner-approved payment | Audit chain |
 |---|---|---|---|---|---|---|---|---|---|---|
