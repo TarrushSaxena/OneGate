@@ -225,7 +225,7 @@ What each user sees follows their tier: viewers get read-only panels, and only o
 
 # 8. Testing and execution evidence
 
-- **Automated tests:** `node backend/tests/run-all-tests.js` runs **41 test files, all passing**. Of these, **26 SME tests** in `sme-01-core.test.js` and `sme-02-api.test.js` cover:
+- **Automated tests:** `node backend/tests/run-all-tests.js` runs **42 test files, all passing**. Of these, **28 SME tests** in `sme-01-core`, `sme-02-api` and `sme-03-secret-hygiene` cover:
   - deterministic data
   - forecast shape and backtest
   - receivable ranking and the planted injection note
@@ -239,6 +239,7 @@ What each user sees follows their tier: viewers get read-only panels, and only o
   - the full payment approval flow
   - the allowlist and the bank-detail DENY
   - copilot grounding and blocking
+  - secret hygiene: the suite fails if a tracked file contains a key or a published password
 - **Sandbox run:** `node backend/sme/scripts/sandbox-run.js` runs the same script against all three SMEs and writes `docs/sandbox-evidence/`:
 
 | SME | Attacks blocked | Phishing warned | Policy denials | Owner-approved payment | Audit chain |
