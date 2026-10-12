@@ -27,6 +27,9 @@ OneGate SME adds a permission-tiered AI finance copilot for small businesses to 
 ## Forecast method
 Day-of-week sales baseline (90-day lookback), calendar obligations (payroll, rent, GST, utilities), collections from not-yet-issued invoices at the run rate (ramped in over 45 days), Laplace-smoothed per-customer pay probability and delay (decaying once an invoice is later than that customer's norm), and scheduled payables. Low and high cases flex sales, receivables and supplier spend. The 30-day walk-forward backtest MAPE is reported in every forecast response and in `docs/sandbox-evidence/SUMMARY.md`.
 
+## Dashboard
+Open `http://localhost:3000/sme.html` after `npm run provision:demo`, then pick an SME demo user. It shows KPI cards, a 90-day forecast chart with the low-to-high band and safety buffer, risk-ranked receivables with one-click reminder proposals, the copilot chat (including a "Try an attack" button), an owner-only approvals queue with amount re-confirmation, a financing comparison and the live hash-chain audit trail. Viewers and accountants see only what their tier allows.
+
 ## Run it
 ```bash
 cd backend && npm install
@@ -35,7 +38,7 @@ node --test tests/sme-01-core.test.js tests/sme-02-api.test.js
 node tests/run-all-tests.js              # full suite (core + SME)
 npm start                                # API on :3000
 ```
-Demo SME users (create the accounts with the existing provisioning flow): `owner.ananya@company.com` (owner), `accounts.ananya@company.com` (accountant), `owner.chai@company.com`, `owner.pixelforge@company.com` and `viewer.pixelforge@company.com`. See `backend/sme/tenancy.js`.
+Demo SME users (created by `npm run provision:demo` and listed on the dashboard's sign-in screen): `owner.ananya@company.com` (owner), `accounts.ananya@company.com` (accountant), `owner.chai@company.com`, `owner.pixelforge@company.com` and `viewer.pixelforge@company.com`. See `backend/sme/tenancy.js`.
 
 ## Status
-Done: backend module, tests and sandbox evidence. Next: SME dashboard UI, optional LLM narration over the deterministic tool outputs, and the demo video.
+Done: backend module, dashboard (`frontend/sme.html`), tests and sandbox evidence. Next: optional LLM narration over the deterministic tool outputs, and the demo video.
