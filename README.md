@@ -34,6 +34,14 @@
 
 ---
 
+## 💹 NEW: OneGate SME Finance Copilot (FinTechathon 2026, Topic E)
+
+A permission-tiered AI finance copilot for small businesses, built on OneGate's security core. It provides 30/60/90-day cash-flow forecasts, risk-ranked overdue receivables, reminder drafts, explainable financing matching, and sandbox payments and loan applications that **always require the owner's approval**. It adds prompt-injection and phishing defences, tenant isolation and a hash-chained audit log. Synthetic sandbox data only.
+
+➡️ Full docs: [`docs/SME_COPILOT.md`](docs/SME_COPILOT.md) · Evidence: [`docs/sandbox-evidence/SUMMARY.md`](docs/sandbox-evidence/SUMMARY.md) · Code: `backend/sme/`
+
+---
+
 ## 🌟 System Highlights & Key Features
 
 1. **One Front Door Simplicity**: Employees never have to guess which department to contact. A single unified chat window intelligently routes, deflects, or escalates every inquiry.
@@ -104,7 +112,7 @@ flowchart TD
 - **API Provider**: OpenAI-compatible endpoint at `https://zenmux.ai/api/v1`
 - **Primary Model**: `dots-studio/dots3-note-prev`
 - **Fallback Models**: `z-ai/glm-4.7-flash-free`, `z-ai/glm-4.6v-flash-free`
-- **Pre-configured Key**: Included in the repository configuration (`backend/services/llm.js` and `.env`) for zero-setup execution.
+- **API Key**: Read from `ZENMUX_API_KEY` in your local `.env` (never committed).
 
 ### 3. Knowledge Base & Grounding
 - **Indexed Handbooks**: 60 articles spanning 11 department policy handbooks.
@@ -326,7 +334,7 @@ The application comes pre-configured with ready-to-run defaults in `.env`.
 | `BCRYPT_ROUNDS` | Password hashing complexity rounds | `12` |
 | `COMPANY_EMAIL_DOMAIN`| Permitted enterprise domain | `company.com` |
 | `DEMO_MODE` | Enables quick demo login selector | `true` |
-| `ZENMUX_API_KEY` | Zenmux OpenAI-compatible API key | `sk-ai-v1-31d6836f1af3bf13907e6923c7cdab7195e961e64b3e7b6b1a54e4f202aa7bf1` |
+| `ZENMUX_API_KEY` | Zenmux OpenAI-compatible API key | *(not committed; set in your local `.env`)* |
 | `ZENMUX_BASE_URL` | Zenmux API endpoint | `https://zenmux.ai/api/v1` |
 | `ZENMUX_PRIMARY_MODEL`| Primary LLM inference model | `dots-studio/dots3-note-prev` |
 | `ML_SERVICE_URL` | Python FastAPI microservice URL | `http://127.0.0.1:8000` |
