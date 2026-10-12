@@ -2,7 +2,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const testFiles = require('fs').readdirSync(__dirname).filter(file => /^(pilot-|ps18-).*\.test\.js$/.test(file)).sort();
+const testFiles = require('fs').readdirSync(__dirname).filter(file => /^(pilot-|ps18-|sme-).*\.test\.js$/.test(file)).sort();
 
 console.log('====================================================');
 console.log(' Running PS18 Backlog & USP Acceptance Test Suite ');

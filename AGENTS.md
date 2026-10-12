@@ -1,5 +1,5 @@
 # AGENTS.md — Standing Rules for OneGate / PS18
-Read `docs/UI_PLAN.md` and `docs/PS18_Loop_Prompts_and_Handoff_UX.md` before touching any UI.
+Read `docs/helpdesk/design/UI_PLAN.md` and `docs/helpdesk/design/PS18_Loop_Prompts_and_Handoff_UX.md` before touching any UI.
 
 ## Golden Rules
 - Exclusively Light Mode Liquid Glass (stacked blur + refraction + reflection on light canvas wash).

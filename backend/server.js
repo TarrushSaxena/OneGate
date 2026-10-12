@@ -227,6 +227,8 @@ app.get('/api/policies', (req,res) => res.json({articles:allKBArticles.map(({id,
 app.get('/api/policies/handbook.pdf', (req,res) => {res.setHeader('Content-Disposition','inline; filename="onegate-company-policies.pdf"');res.sendFile(path.join(__dirname,'data/policy-pdfs/company-policies.pdf'));});
 const pilot = require('./routes/pilot').installPilot(app, io, state);
 app.use('/api/admin', adminRoutes);
+// OneGate SME Finance Copilot (FinTechathon 2026, Topic E). Tenant-scoped, sandbox-only.
+app.use('/api/sme', require('./sme/routes'));
 // Legacy manager/corporate routes use fixture or in-memory records. The pilot
 // dashboard and workplace router above replace them with scoped durable records.
 // Retired memory-backed endpoints must not bypass pilot ownership or storage.
