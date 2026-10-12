@@ -40,6 +40,8 @@ A permission-tiered AI finance copilot for small businesses, built on OneGate's 
 
 🖥️ Dashboard: `http://localhost:3000/sme.html` (after `npm run provision:demo`)
 
+🛡️ Security self-assessment: [`docs/SECURITY_SELF_ASSESSMENT.md`](docs/SECURITY_SELF_ASSESSMENT.md)
+
 ➡️ Full docs: [`docs/SME_COPILOT.md`](docs/SME_COPILOT.md) · Evidence: [`docs/sandbox-evidence/SUMMARY.md`](docs/sandbox-evidence/SUMMARY.md) · Code: `backend/sme/`
 
 ---
