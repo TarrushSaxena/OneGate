@@ -18,7 +18,7 @@ date: "12 October 2026"
 - An AI-initiated money movement can never reach a beneficiary outside the tenant's verified allowlist, or go over hard limits.
 - The design does not depend on the AI detecting an attack. Detection is one layer. Authority is enforced by a deterministic policy engine that natural language cannot change.
 
-**Evidence:** All 41 automated test files pass (`node backend/tests/run-all-tests.js`). Of these, 26 tests are SME-specific in `sme-01-core.test.js` and `sme-02-api.test.js`. The sandbox run logs are in `docs/sandbox-evidence/`.
+**Evidence:** All 42 automated test files pass (`node backend/tests/run-all-tests.js`). Of these, 28 tests are SME-specific, in `sme-01-core`, `sme-02-api` and `sme-03-secret-hygiene`. The sandbox run logs are in `docs/sandbox-evidence/`.
 
 # 2. Architecture and trust boundaries
 
@@ -133,7 +133,7 @@ Limits and the allowlist are **re-checked at approval time**, not only when the 
 | No security headers (CSP/HSTS) or per-route rate limit on `/api/sme` | XSS impact and brute force | Output escaping; login lockout | Add `helmet` CSP and rate limits |
 | Platform token also stored in `localStorage` by the older employee UI | Readable by an XSS | SME dashboard uses the cookie only | Move the rest of the app to cookie-only |
 | Demo login enabled outside `NODE_ENV=production` | Anyone with a dev deployment can log in as demo users | Disabled automatically in production | Keep demo deployments private |
-| Secret hygiene: a third-party API key existed in older commits; a shared demo password is in the repo | Key misuse; credential reuse | Key removed from current README | **Revoke and rotate the key**, purge history, replace the demo password with per-deploy generated secrets |
+| Secret hygiene: a third-party API key exists in older commits | Key misuse until revoked | Removed from the working tree; shared demo password removed (passwords now generated per deploy or set via `DEMO_PASSWORD`); `sme-03-secret-hygiene` test fails the build on any tracked key or published password | **Revoke and rotate the key** at the provider, then rewrite history |
 
 # 8. Compliance alignment (indicative, not certified)
 
@@ -146,7 +146,7 @@ Limits and the allowlist are **re-checked at approval time**, not only when the 
 ```
 cd backend
 npm install
-node tests/run-all-tests.js            # 41 suites, all pass
+node tests/run-all-tests.js            # 42 suites, all pass
 node --test tests/sme-01-core.test.js tests/sme-02-api.test.js
 node sme/scripts/sandbox-run.js        # regenerates docs/sandbox-evidence/
 npm run provision:demo && npm start    # dashboard at http://localhost:3000/sme.html
