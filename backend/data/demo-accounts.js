@@ -30,6 +30,12 @@ const DEMO_ACCOUNTS = [
   { key:'marketing-specialist', name:'Aditya Sen', email:'marketing.support@company.com', role:'support_executive', department:'Marketing', tier:'L2', skill_tags:['Marketing','brand'] },
   { key:'quality-assurance-specialist', name:'Tanvi Joshi', email:'qualityassurance.support@company.com', role:'support_executive', department:'Quality Assurance', tier:'L2', skill_tags:['Quality Assurance','testing'] },
   { key:'employee', name:'Demo Employee', email:'employee@company.com', role:'employee', department:'IT', tier:'L1' },
+  // OneGate SME Finance Copilot demo users (tenant membership in backend/sme/tenancy.js)
+  { key:'sme-owner-ananya', name:'SME Owner · Ananya Textiles', email:'owner.ananya@company.com', role:'employee', department:'Finance', tier:'L1' },
+  { key:'sme-accountant-ananya', name:'SME Accountant · Ananya Textiles', email:'accounts.ananya@company.com', role:'employee', department:'Finance', tier:'L1' },
+  { key:'sme-owner-chai', name:'SME Owner · Chai Point Cafe', email:'owner.chai@company.com', role:'employee', department:'Finance', tier:'L1' },
+  { key:'sme-owner-pixelforge', name:'SME Owner · PixelForge Studio', email:'owner.pixelforge@company.com', role:'employee', department:'Finance', tier:'L1' },
+  { key:'sme-viewer-pixelforge', name:'SME Viewer · PixelForge Studio', email:'viewer.pixelforge@company.com', role:'employee', department:'Finance', tier:'L1' },
 ];
 
 const ROLE_LABELS = {
