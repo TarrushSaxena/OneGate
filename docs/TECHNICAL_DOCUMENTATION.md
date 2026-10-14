@@ -128,11 +128,11 @@ The model is transparent and has no training step. For each future day:
 
 | SME | Profile | MAPE (30 d) | Days actual inside low–high |
 |---|---|---|---|
-| Chai Point Cafe | Retail café, steady daily sales | **3.93%** | 86.7% |
-| PixelForge Design Studio LLP | B2B services, lumpy invoices | **7.89%** | 13.3% |
-| Ananya Textiles Pvt Ltd | Wholesale, slow payers | **26%** | 63.3% |
+| Chai Point Cafe | Retail café, steady daily sales | **3.63%** | 96.7% |
+| PixelForge Design Studio LLP | B2B services, lumpy invoices | **8.68%** | 36.7% |
+| Ananya Textiles Pvt Ltd | Wholesale, slow payers | **14.82%** | 56.7% |
 
-*How to read this:* the base case is accurate for steady businesses and weaker for lumpy B2B receipts. The low/high band is a **scenario range, not a calibrated confidence interval**. PixelForge's low coverage shows that, and we report it rather than hide it (§10).
+*How to read this:* the base case is accurate for steady businesses and weaker for lumpy B2B receipts. The low/high columns are the **scenario range**, which is not calibrated: PixelForge's low coverage shows that. A separate band calibrated on 26 walk-forward start dates covers 80% of past outcomes for each SME, and every safety check uses the lower of the two (see AGENTIC_COPILOT.md §11). The v1.8 collections fix cut Ananya's MAPE from 26% to 14.82%.
 
 ## 5.2 Receivable risk score (`receivables.js`)
 
@@ -279,14 +279,14 @@ Environment variables are documented in the README. No secrets are needed for th
 - Membership is a static demo table.
 - Detection uses rules and heuristics.
 - One-time codes are shown on screen in the sandbox instead of being sent by SMS.
-- The forecast band is a scenario range, not a calibrated interval.
+- The calibrated band is empirical (one business history, overlapping windows), not a guaranteed interval.
 - Platform CORS is open, and there is no CSP or per-route rate limit yet.
 
 **Roadmap:**
 
 - Persistent append-only storage, with the chain head anchored to an external log
 - Real SMS delivery or passkeys for step-up codes
-- A calibrated forecast interval (quantile or Monte Carlo) and transaction categorisation
+- Learned per-customer payment curves and transaction categorisation
 - A classifier as a second opinion beside the rule guards, trained on a growing red-team set
 - A federated credit model across lenders (FATE), fed by the banded features OneGate already shares
 - Account Aggregator (open-banking) consent connectors, TReDS and lender APIs, and accounting-software import

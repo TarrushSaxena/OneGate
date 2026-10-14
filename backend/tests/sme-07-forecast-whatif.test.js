@@ -60,6 +60,33 @@ test('a harder-to-forecast business gets a wider band (Ananya vs Chai Point)', (
   assert.ok(w(A) > w(C) * 3, `Ananya ${w(A)} vs Chai ${w(C)}`);
 });
 
+test('v1.8 collections fix: the base case is no longer badly optimistic', () => {
+  // Median error (actual minus base) at 31-45 days before the fix: Ananya -11,55,897; Chai Point -1,40,910; PixelForge -3,10,415.
+  const limits = { [A]: 300000, [C]: 60000, [P]: 80000 };
+  for (const id of [A, C, P]) {
+    const m = cal.calibrate(getTenant(id)).buckets[2].median_error;
+    assert.ok(Math.abs(m) <= limits[id], `${id} median 31-45d error ${m}`);
+  }
+});
+
+test('collections from not-yet-issued invoices only start once new invoices have aged to the usual pay time', () => {
+  const { collectionLag } = require('../sme/forecast');
+  const t = getTenant(A);
+  const lag = collectionLag(t.invoices, Date.parse(`${t.profile.as_of}T00:00:00Z`));
+  assert.ok(lag.p25 >= 25 && lag.p75 > lag.p25, JSON.stringify(lag));
+});
+
+test('the safety low is never above the scenario low or the calibrated band', () => {
+  for (const id of [A, C, P]) {
+    const t = getTenant(id); const f = forecast(t, { horizon: 90 });
+    const c = cal.calibrate(t);
+    f.series.forEach((p, i) => {
+      assert.ok(p.low <= (p.scenario_low ?? p.low) + 0.01);
+      assert.ok(p.low <= p.base + cal.bandFor(c, i + 1).q_low + 0.01, `${id} day ${i + 1}`);
+    });
+  }
+});
+
 test('calibrated band is attached to the forecast without changing the scenario numbers', () => {
   const t = getTenant(A); const f = forecast(t, { horizon: 90 });
   const r = cal.withCalibratedBand(t, f);
