@@ -64,8 +64,13 @@ router.get('/:tid/overview', gate('view_overview'), (req, res) => {
 router.get('/:tid/forecast', gate('view_forecast'), (req, res) => {
   const horizon = Math.min(90, Math.max(7, Number(req.query.horizon) || 90));
   audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'view.forecast', tier: 'READ', decision: 'allow', metadata: { horizon } });
-  res.json({ ...forecast(req.tenant, { horizon }), backtest: backtest(req.tenant) });
+  const f = forecast(req.tenant, { horizon });
+  const cb = require('./calibrate').withCalibratedBand(req.tenant, f);
+  res.json({ ...f, series: cb.series, calibration: cb.calibration, backtest: backtest(req.tenant) });
 });
+
+// What-if stress test: READ only, nothing stored or queued.
+router.post('/:tid/whatif', gate('view_forecast'), (req, res) => res.json(require('./whatif').whatIf(req.tenant, req.body || {})));
 
 router.get('/:tid/receivables', gate('view_receivables'), (req, res) => {
   audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'view.receivables', tier: 'READ', decision: 'allow' });

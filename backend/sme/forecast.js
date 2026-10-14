@@ -61,6 +61,12 @@ function balanceAt(transactions, asOfMs, openingBalance) {
  */
 function forecast(tenant, opts = {}) {
   const horizon = opts.horizon || 90;
+  // What-if adjustments (READ-only simulation; never changes stored data).
+  const adj = opts.adjust || {};
+  const salesF = 1 + (Number(adj.sales_change_pct) || 0) / 100;
+  const supplierF = 1 + (Number(adj.supplier_cost_change_pct) || 0) / 100;
+  const delayed = adj.delay_customers || {}; // customer -> extra days late
+  const extraOut = Array.isArray(adj.extra_outflows) ? adj.extra_outflows : [];
   const asOfMs = opts.asOf ? toMs(opts.asOf) : toMs(tenant.profile.as_of);
   const start = balanceAt(tenant.transactions, asOfMs, tenant.profile.opening_balance);
   const base = baseline(tenant.transactions, asOfMs);
@@ -83,6 +89,7 @@ function forecast(tenant, opts = {}) {
       const spread = [...i.id].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 14;
       expMs = asOfMs + (7 + spread) * DAY;
     }
+    if (delayed[i.customer]) expMs += Number(delayed[i.customer]) * DAY;
     return { invoice: i.id, customer: i.customer, amount: i.amount, expected_date: iso(expMs), probability: round2(p) };
   });
   // Scheduled (approved, not yet settled) bills still leave the account on their due date.
@@ -95,13 +102,14 @@ function forecast(tenant, opts = {}) {
     const m = asOfMs + d * DAY;
     const dt = new Date(m);
     const day = iso(m);
-    const sales = base.salesByDow[dt.getUTCDay()];
+    const sales = base.salesByDow[dt.getUTCDay()] * salesF;
     let fixedOut = 0;
     if (dt.getUTCDate() === rec.rent.day) { fixedOut += rec.rent.amount; drivers.rent -= rec.rent.amount; }
     if (dt.getUTCDate() === rec.payroll.day) { fixedOut += rec.payroll.amount; drivers.payroll -= rec.payroll.amount; }
     if (dt.getUTCDate() === rec.gst.day) { fixedOut += rec.gst.amount; drivers.gst -= rec.gst.amount; }
     if (dt.getUTCDate() === 15) { fixedOut += base.utilitiesMonthly; drivers.utilities -= base.utilitiesMonthly; }
-    const supplierOut = dt.getUTCDay() === 2 ? base.supplierWeekly : 0;
+    const supplierOut = dt.getUTCDay() === 2 ? base.supplierWeekly * supplierF : 0;
+    for (const x of extraOut) if (x.date === day) fixedOut += Number(x.amount) || 0;
     drivers.supplier -= supplierOut;
     drivers.sales += sales;
     let invBase = 0, invLow = 0, invHigh = 0;
