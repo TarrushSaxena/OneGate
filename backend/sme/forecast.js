@@ -85,7 +85,8 @@ function forecast(tenant, opts = {}) {
     }
     return { invoice: i.id, customer: i.customer, amount: i.amount, expected_date: iso(expMs), probability: round2(p) };
   });
-  const payables = (opts.asOf ? [] : tenant.payables.filter((b) => b.status === 'open'));
+  // Scheduled (approved, not yet settled) bills still leave the account on their due date.
+  const payables = (opts.asOf ? [] : tenant.payables.filter((b) => b.status === 'open' || b.status === 'scheduled'));
 
   const scen = { base: start, low: start, high: start };
   const series = [];
