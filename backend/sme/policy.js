@@ -17,6 +17,8 @@ const ACTIONS = {
   view_discounts: TIERS.READ,
   draft_reminder: TIERS.SUGGEST,
   recommend_financing: TIERS.SUGGEST,
+  mark_dispute: TIERS.SUGGEST,        // owner or accountant flags an invoice/bill as disputed (stops chasing and paying)
+  view_compliance: TIERS.READ,
   send_reminder: TIERS.EXECUTE,
   schedule_payment: TIERS.EXECUTE,
   submit_loan_application: TIERS.EXECUTE,
@@ -73,10 +75,22 @@ function evaluate(action, ctx = {}) {
     if (!ben.verified) return { decision: 'deny', tier, reasons: ['beneficiary_unverified'] };
     if (amount > LIMITS.per_payment_max) return { decision: 'deny', tier, reasons: [`exceeds_per_payment_limit_${LIMITS.per_payment_max}`] };
     if ((ctx.paidToday || 0) + amount > LIMITS.daily_payment_cap) return { decision: 'deny', tier, reasons: [`exceeds_daily_cap_${LIMITS.daily_payment_cap}`] };
+    const bill = p.bill_id ? (ctx.tenant?.payables || []).find((b) => b.id === p.bill_id) : null;
+    if (bill && bill.dispute) return { decision: 'deny', tier, reasons: ['bill_under_dispute'] };
     if (ctx.forecastAfter && ctx.forecastAfter.breach) warnings.push(`payment_pushes_cash_below_buffer_on_${ctx.forecastAfter.date}`);
   }
   if (action === 'submit_loan_application' && !p.product_id) return { decision: 'deny', tier, reasons: ['missing_product'] };
+  if (action === 'submit_loan_application') {
+    const lp = require('./data/sandbox').LOAN_PRODUCTS.find((x) => x.id === p.product_id);
+    if (!lp) return { decision: 'deny', tier, reasons: ['missing_product'] };
+    // RBI digital lending: money goes straight from the lender to the borrower, never through a third party's account.
+    if (lp.disbursal_route && lp.disbursal_route !== 'direct_to_borrower_account') return { decision: 'deny', tier, reasons: ['pass_through_disbursal'] };
+  }
   if (action === 'send_reminder' && !p.invoice_id) return { decision: 'deny', tier, reasons: ['missing_invoice'] };
+  if (action === 'send_reminder') {
+    const inv = (ctx.tenant?.invoices || []).find((i) => i.id === p.invoice_id);
+    if (inv && inv.dispute) return { decision: 'deny', tier, reasons: ['invoice_under_dispute'] };
+  }
   reasons.push('execute_tier_requires_owner_approval');
   return { decision: 'require_approval', tier, reasons, warnings };
 }

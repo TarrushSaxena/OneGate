@@ -57,7 +57,7 @@
     $('#chat').innerHTML = ''; $('#trace').innerHTML = ''; WI = null;
     ['#wiDelay', '#wiSales', '#wiSup', '#wiOne'].forEach((id) => { $(id).value = 0; }); $('#wiOut').className = 'wi-out muted'; $('#wiOut').textContent = 'Move a slider to see how low cash would go.'; $('#wiReset').hidden = true;
     say('a', `Hi! I'm the OneGate copilot for ${ME.tenant_name}. I can read your books and draft things on my own. Anything that moves money or contacts customers waits for the owner's approval.`);
-    await Promise.all([loadCockpit(), loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts()]);
+    await Promise.all([loadCockpit(), loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts(), loadCompliance()]);
   }
 
   async function loadOverview() {
@@ -146,8 +146,12 @@
     $('#arMeta').textContent = `${r.top_overdue.length} shown · ${inr(r.total_overdue)} overdue`;
     $('#ageing').innerHTML = Object.entries(r.ageing).map(([b, v]) => `<div>${b}<b>${inr(v)}</b></div>`).join('');
     const canDraft = ME.sme_role !== 'viewer';
-    $('#arBody').innerHTML = r.top_overdue.map((i) => `<tr><td>${esc(i.invoice)}${i.untrusted_note?.flagged ? ' <span title="Note contained instructions aimed at the AI and was ignored" class="risk h">⚑</span>' : ''}</td><td>${esc(i.customer)}</td><td class="r">${inr(i.amount)}</td><td class="r">${i.days_overdue}</td><td class="r"><span class="risk ${i.risk_score >= 70 ? 'h' : i.risk_score >= 40 ? 'm' : 'l'}">${i.risk_score}</span></td><td class="r">${canDraft ? `<button class="ghost" data-inv="${esc(i.invoice)}">Remind</button>` : ''}</td></tr>`).join('');
+    $('#arBody').innerHTML = r.top_overdue.map((i) => `<tr><td>${esc(i.invoice)}${i.untrusted_note?.flagged ? ' <span title="Note contained instructions aimed at the AI and was ignored" class="risk h">⚑</span>' : ''}</td><td>${esc(i.customer)}${i.tds ? `<div class="tag2" title="${esc(i.tds.basis)}">TDS s.${esc(i.tds.section)} ${i.tds.rate_pct}% · cash in ${inr(i.tds.net_cash)}</div>` : ''}${i.msme_43bh?.beyond_limit ? `<div class="tag2 b" title="${esc(i.msme_43bh.note)}">43B(h): past ${i.msme_43bh.limit_days} days</div>` : ''}</td><td class="r">${inr(i.amount)}</td><td class="r">${i.days_overdue}</td><td class="r"><span class="risk ${i.risk_score >= 70 ? 'h' : i.risk_score >= 40 ? 'm' : 'l'}">${i.risk_score}</span></td><td class="r nowrap">${canDraft ? `<button class="ghost" data-inv="${esc(i.invoice)}">Remind</button> <button class="linkish" data-dis="${esc(i.invoice)}" title="Mark as disputed: stops chasing until settled">Dispute</button>` : ''}</td></tr>`).join('');
+    $('#arDisputed').innerHTML = r.disputed?.length ? `<div class="muted" style="margin-top:8px">On hold (disputed, not chased):</div>${r.disputed.map((d) => `<div class="card bad"><div class="t">${esc(d.invoice)} · ${esc(d.customer)} · ${inr(d.amount)}</div><div class="muted">${esc(d.dispute.reason)} · marked by ${esc(d.dispute.by)}</div>${canDraft ? `<button class="ghost" data-undis="${esc(d.invoice)}">Mark settled</button>` : ''}</div>`).join('')}` : '';
+    $('#arDisputed').onclick = async (e) => { const b = e.target.closest('[data-undis]'); if (!b) return; try { await api(`/api/sme/${TID}/disputes`, { method: 'POST', body: { kind: 'invoice', id: b.dataset.undis, disputed: false } }); toast('Dispute settled'); } catch (err) { refuse(err); } loadReceivables(); loadAudit(); loadForecast(); };
     $('#arBody').onclick = async (e) => {
+      const d = e.target.closest('[data-dis]');
+      if (d) { const reason = prompt('What is disputed? (e.g. damaged goods, short delivery)', 'quality dispute'); if (reason === null) return; try { await api(`/api/sme/${TID}/disputes`, { method: 'POST', body: { kind: 'invoice', id: d.dataset.dis, disputed: true, reason } }); toast('Marked disputed: the agent won’t chase it'); } catch (err) { refuse(err); } loadReceivables(); loadAudit(); loadForecast(); return; }
       const b = e.target.closest('button[data-inv]'); if (!b) return;
       try { await api(`/api/sme/${TID}/actions`, { method: 'POST', body: { type: 'send_reminder', params: { invoice_id: b.dataset.inv }, idempotency_key: `rem-${b.dataset.inv}` } }); toast('Reminder queued for owner approval'); loadApprovals(); loadAudit(); loadOverview(); }
       catch (err) { refuse(err); }
@@ -155,6 +159,9 @@
   }
 
   const challenges = {}; // action id -> step-up challenge
+  const kfsTicked = {};   // action id -> owner ticked "I have read the KFS"
+  document.addEventListener('change', (e) => { const k = e.target.closest && e.target.closest('[data-kfs]'); if (k) kfsTicked[k.dataset.kfs] = k.checked; });
+  const kfsHtml = (k) => `<dl class="share kfsdl"><dt>Lender</dt><dd>${esc(k.regulated_entity)}</dd><dt>Amount</dt><dd>${inr(k.amount)} for ${k.tenure_months} months</dd><dt>Interest rate</dt><dd>${k.interest_rate_pct}%</dd><dt>Processing fee</dt><dd>${inr(k.processing_fee)}</dd><dt>All-in APR</dt><dd><b>${k.apr_all_in_pct}%</b></dd><dt>Instalment</dt><dd>${inr(k.instalment)}</dd><dt>Total repayable</dt><dd>${inr(k.total_repayable)}</dd><dt>You receive</dt><dd>${inr(k.net_disbursed)}, straight to your account</dd><dt>Penal charges</dt><dd>${esc(k.penal_charges)}</dd><dt>Cooling-off</dt><dd>${esc(k.cooling_off_rule)}</dd><dt>Grievances</dt><dd>${esc(k.grievance_officer)}</dd></dl><div class="muted">${esc(k.basis)} KFS ${esc(k.hash.slice(0, 12))}…</div>`;
   async function loadApprovals() {
     const { actions } = await api(`/api/sme/${TID}/actions`);
     const owner = ME.sme_role === 'owner';
@@ -164,6 +171,9 @@
       <div class="card"><div class="t">${esc(a.summary)}</div>
       <div class="muted">${esc(a.tier)} · proposed by ${esc(a.proposed_by.sme_role)} via ${esc(a.proposed_by.source)} <span class="st ${esc(a.status)}">${esc(a.status.replace(/_/g, ' '))}</span></div>
       ${a.why_warnings?.length ? whyHtml(a.why_warnings) : a.warnings?.length ? `<div class="w">⚠ ${esc(a.warnings.join('; ').replace(/_/g, ' '))}</div>` : ''}
+      ${a.kfs ? `<details class="kfs"><summary>Key Facts Statement · all-in APR ${a.kfs.apr_all_in_pct}% · cooling-off ${a.kfs.cooling_off_days} day(s)</summary>${kfsHtml(a.kfs)}</details>${a.status === 'pending_approval' && owner ? `<label class="kfsack"><input type="checkbox" data-kfs="${a.id}" value="${esc(a.kfs.hash)}" ${kfsTicked[a.id] ? 'checked' : ''}> I have read the Key Facts Statement</label>` : ''}` : ''}
+      ${a.status === 'executed' && a.receipt?.cooling_off_until && owner ? `<div class="row"><span class="muted">Penalty-free exit until ${esc(a.receipt.cooling_off_until)}</span><button class="ghost" data-coe="${a.id}">Exit loan</button></div>` : ''}
+      ${a.cooling_off_exit ? `<div class="muted">Exited in cooling-off: repay ${inr(a.cooling_off_exit.repay_principal)} + ${inr(a.cooling_off_exit.interest_for_days_used)} interest, no penalty.</div>` : ''}
       ${a.preview ? `<details><summary class="muted">Preview email</summary><pre class="muted" style="white-space:pre-wrap">${esc(a.preview.subject)}\n\n${esc(a.preview.body)}</pre></details>` : ''}
       ${a.receipt ? `<div class="muted">Receipt ${esc(a.receipt.reference)}${a.mandate_id ? ` · paid by autopilot under ${esc(a.mandate_id)}` : ''}</div>` : ''}
       ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner’s phone. Enter it here.</div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
@@ -172,7 +182,8 @@
     }).join('') : '<div class="muted empty">Nothing waiting. Run “Plan my cash gap”, or ask the copilot to pay a bill or send a reminder.</div>';
     $('#laneWaitMeta').textContent = owner ? `${actions.filter((a) => a.status === 'pending_approval').length} to approve` : ME.sme_role === 'viewer' ? 'view only' : 'you propose, the owner approves';
     $('#approvals').onclick = async (e) => {
-      const su = e.target.closest('[data-su]'); const ap = e.target.closest('[data-ap]'); const rj = e.target.closest('[data-rj]');
+      const su = e.target.closest('[data-su]'); const ap = e.target.closest('[data-ap]'); const rj = e.target.closest('[data-rj]'); const coe = e.target.closest('[data-coe]');
+      if (coe) { try { await api(`/api/sme/${TID}/actions/${coe.dataset.coe}/cooling-off-exit`, { method: 'POST' }); toast('Loan exited in cooling-off, no penalty'); } catch (err) { refuse(err); } return loadApprovals(); }
       try {
         if (su) {
           const c = await api(`/api/sme/${TID}/actions/${su.dataset.su}/stepup`, { method: 'POST' }); challenges[su.dataset.su] = c;
@@ -181,8 +192,8 @@
           return loadApprovals();
         }
         if (ap) {
-          const id = ap.dataset.ap; const c = $(`[data-c="${id}"]`); const o = $(`[data-o="${id}"]`);
-          await api(`/api/sme/${TID}/actions/${id}/approve`, { method: 'POST', body: { confirm_amount: c ? Number(c.value) : undefined, otp: challenges[id] ? { challenge_id: challenges[id].challenge_id, code: o ? o.value.trim() : '' } : undefined } });
+          const id = ap.dataset.ap; const c = $(`[data-c="${id}"]`); const o = $(`[data-o="${id}"]`); const k = $(`[data-kfs="${id}"]`);
+          await api(`/api/sme/${TID}/actions/${id}/approve`, { method: 'POST', body: { kfs_ack: k && k.checked ? k.value : undefined, confirm_amount: c ? Number(c.value) : undefined, otp: challenges[id] ? { challenge_id: challenges[id].challenge_id, code: o ? o.value.trim() : '' } : undefined } });
           delete challenges[id]; toast('Approved and executed in sandbox');
         }
         if (rj) { await api(`/api/sme/${TID}/actions/${rj.dataset.rj}/reject`, { method: 'POST', body: { reason: 'owner_rejected' } }); toast('Rejected'); }
@@ -287,6 +298,13 @@
     };
   }
 
+  async function loadCompliance() {
+    const c = await api(`/api/sme/${TID}/compliance`);
+    $('#compliance').innerHTML = c.items.map((x) => `<li><span class="cd">${esc(x.date.slice(5))}</span><div><b>${esc(x.item)}</b>${x.amount ? ` · ${inr(x.amount)}` : ''}${x.status ? ` <span class="st ${x.status === 'covered' ? 'executed' : 'rejected'}">${esc(x.status)}</span>` : ''}<div class="muted">${esc(x.law)}${x.amount_note ? ` · ${esc(x.amount_note)}` : ''}</div><div class="muted late">If late: ${esc(x.if_late)}</div></div></li>`).join('') || '<li class="muted">Nothing due.</li>';
+    const u = c.udyam;
+    $('#compNote').textContent = `${u && u.registered ? `Udyam: ${u.category}, ${u.activity}${u.activity === 'trading' ? ' (traders are outside the MSME 45-day payment rule)' : ''}. ` : 'Not Udyam-registered. '}${c.disclaimer}`;
+  }
+
   async function loadShare() {
     if (ME.sme_role === 'viewer') { $('#share').innerHTML = '<div class="muted">Viewers can’t see lender data.</div>'; return; }
     const s = await api(`/api/sme/${TID}/privacy/lender-share`);
@@ -306,9 +324,11 @@
     e && e.preventDefault();
     if (ME.sme_role === 'viewer') { $('#finBody').innerHTML = '<tr><td colspan="5" class="muted">Viewers can’t run financing matches.</td></tr>'; return; }
     const m = await api(`/api/sme/${TID}/financing/match`, { method: 'POST', body: { amount: Number($('#finAmt').value), urgency_days: Number($('#finDays').value) } });
-    $('#finBody').innerHTML = m.options.map((o) => `<tr><td>${esc(o.lender)}${m.recommendation?.product_id === o.product_id ? ' <span class="risk l">best</span>' : ''}</td><td class="r">${o.apr_pct}%</td><td class="r">${inr(o.est_monthly_payment)}</td><td class="r">${inr(o.est_total_cost)}</td><td>${o.eligible ? '<span class="ok">eligible</span>' : `<span class="no">${esc(o.blockers[0])}</span>`}</td></tr>`).join('');
+    window.__fin = m; $('#kfsBox').innerHTML = '';
+    $('#finBody').innerHTML = m.options.map((o, i) => `<tr><td>${esc(o.lender)}${m.recommendation?.product_id === o.product_id ? ' <span class="risk l">best</span>' : ''}${o.kfs ? ` <button class="linkish" data-kfsi="${i}">KFS</button>` : ''}</td><td class="r">${o.apr_pct}%</td><td class="r">${o.kfs ? `${o.kfs.apr_all_in_pct}%` : ''}</td><td class="r">${inr(o.est_monthly_payment)}</td><td class="r">${inr(o.est_total_cost)}</td><td>${o.eligible ? '<span class="ok">eligible</span>' : `<span class="no">${esc(o.blockers[0])}</span>`}</td></tr>`).join('');
   }
   $('#fin').onsubmit = runFin;
+  $('#finBody').onclick = (e) => { const b = e.target.closest('[data-kfsi]'); if (!b || !window.__fin) return; const o = window.__fin.options[Number(b.dataset.kfsi)]; $('#kfsBox').innerHTML = `<div class="card"><div class="t">Key Facts Statement · ${esc(o.lender)}</div>${kfsHtml(o.kfs)}</div>`; };
 
   function say(who, text, extra = {}) {
     const d = document.createElement('div');

@@ -90,6 +90,7 @@ function forecast(tenant, opts = {}) {
       expMs = asOfMs + (7 + spread) * DAY;
     }
     if (delayed[i.customer]) expMs += Number(delayed[i.customer]) * DAY;
+    if (i.dispute) p = 0; // disputed: not counted until settled
     return { invoice: i.id, customer: i.customer, amount: i.amount, expected_date: iso(expMs), probability: round2(p) };
   });
   // Scheduled (approved, not yet settled) bills still leave the account on their due date.

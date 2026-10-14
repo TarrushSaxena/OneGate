@@ -15,6 +15,8 @@ function bucket(days) {
   return '90+';
 }
 
+const india = require('./india');
+
 function receivables(tenant) {
   const asOf = toMs(tenant.profile.as_of);
   const stats = customerStats(tenant.invoices, asOf);
@@ -35,9 +37,13 @@ function receivables(tenant) {
       customer_usual_delay_days: s.avg_delay_days,
       priority_value: round2(i.amount * (risk / 100)),
       untrusted_note: notes.flagged ? { flagged: true, reason: notes.reason } : (i.notes ? { flagged: false } : undefined),
+      tds: india.tdsOnReceipt(tenant, i) || undefined,
+      msme_43bh: (() => { const m = india.msme43bh(tenant, i); return m.applies ? m : undefined; })(),
+      dispute: i.dispute || undefined,
     };
   });
-  const overdue = items.filter((x) => x.days_overdue > 0).sort((a, b) => b.priority_value - a.priority_value);
+  // Disputed invoices are never chased: they wait until the dispute is settled.
+  const overdue = items.filter((x) => x.days_overdue > 0 && !x.dispute).sort((a, b) => b.priority_value - a.priority_value);
   return {
     tenant_id: tenant.profile.id,
     as_of: tenant.profile.as_of,
@@ -45,6 +51,8 @@ function receivables(tenant) {
     total_overdue: round2(overdue.reduce((a, b) => a + b.amount, 0)),
     ageing,
     top_overdue: overdue.slice(0, 10),
+    disputed: items.filter((x) => x.dispute).map((x) => ({ invoice: x.invoice, customer: x.customer, amount: x.amount, dispute: x.dispute })),
+    net_of_tds_overdue: round2(overdue.reduce((a, b) => a + (b.tds ? b.tds.net_cash : b.amount), 0)),
     flagged_notes: items.filter((x) => x.untrusted_note && x.untrusted_note.flagged).map((x) => x.invoice),
   };
 }
@@ -54,11 +62,17 @@ function draftReminder(tenant, invoiceId) {
   if (!inv) return null;
   const days = Math.round((toMs(tenant.profile.as_of) - toMs(inv.due)) / DAY);
   const tone = days > 45 ? 'firm' : days > 15 ? 'polite-firm' : 'friendly';
+  const m = india.msme43bh(tenant, inv);
+  const t = india.tdsOnReceipt(tenant, inv);
+  const extra = [
+    m.applies && m.beyond_limit ? `We are a Udyam-registered ${m.category} enterprise. ${m.note}` : '',
+    t ? `If you deduct TDS (s.${t.section}, about ${inv.currency} ${Math.round(t.tds).toLocaleString('en-IN')}), please send the TDS certificate (Form 16A) with the payment.` : '',
+  ].filter(Boolean).join('\n\n');
   const opener = { friendly: 'Hope you are well.', 'polite-firm': 'Following up on the invoice below.', firm: 'This invoice is now significantly overdue.' }[tone];
   return {
     invoice: inv.id, customer: inv.customer, tone, channel: 'email', status: 'draft_requires_approval',
     subject: `Payment reminder: ${inv.id} (${inv.currency} ${inv.amount.toLocaleString('en-IN')})`,
-    body: `Dear ${inv.customer} team,\n\n${opener} Invoice ${inv.id} for ${inv.currency} ${inv.amount.toLocaleString('en-IN')} was due on ${inv.due}${days > 0 ? ` and is ${days} days overdue` : ''}.\n\nPlease arrange payment to our registered account on file, or reply with an expected payment date. Our bank details have not changed; please disregard any message claiming otherwise.\n\nRegards,\nAccounts, ${tenant.profile.name}`,
+    body: `Dear ${inv.customer} team,\n\n${opener} Invoice ${inv.id} for ${inv.currency} ${inv.amount.toLocaleString('en-IN')} was due on ${inv.due}${days > 0 ? ` and is ${days} days overdue` : ''}.\n\nPlease arrange payment to our registered account on file, or reply with an expected payment date. Our bank details have not changed; please disregard any message claiming otherwise.${extra ? `\n\n${extra}` : ''}\n\nRegards,\nAccounts, ${tenant.profile.name}`,
   };
 }
 

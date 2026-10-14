@@ -86,6 +86,9 @@ router.get('/:tid/receivables/:invoiceId/draft', gate('draft_reminder'), (req, r
 
 router.post('/:tid/financing/match', gate('recommend_financing'), (req, res) => {
   const m = matchFinancing(req.tenant, { ...req.body, receivables: receivables(req.tenant) });
+  const { LOAN_PRODUCTS } = require('./data/sandbox');
+  const india = require('./india');
+  m.options = m.options.map((o) => { const lp = LOAN_PRODUCTS.find((x) => x.id === o.product_id); const k = lp && m.requested_amount ? india.keyFactsStatement(lp, m.requested_amount, o.tenure_months) : null; return k ? { ...o, kfs: k } : o; });
   audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'suggest.financing_match', tier: 'SUGGEST', decision: 'allow', metadata: { amount: m.requested_amount } });
   res.json(m);
 });
@@ -134,6 +137,26 @@ router.post('/:tid/mandates/:id/revoke', (req, res) => {
 });
 
 // GST calendar: GSTR-3B dues, input credit at risk, coverage, cost of paying late.
+// Statutory calendar: TDS, GSTR-1, PF/ESIC, GSTR-3B, advance tax (READ).
+router.get('/:tid/compliance', gate('view_compliance'), (req, res) => {
+  const india = require('./india');
+  const g = gst.calendar(req.tenant);
+  res.json({ as_of: req.tenant.profile.as_of, days: 45, items: india.complianceCalendar(req.tenant, 45, g.dues || []), udyam: india.UDYAM[req.tenant.profile.id] || null, disclaimer: 'Indicative dates for a monthly filer; confirm with your CA.' });
+});
+
+// Mark an invoice or bill as disputed (or settled). Disputed items are never chased or paid.
+router.post('/:tid/disputes', gate('mark_dispute'), (req, res) => {
+  if (req.sme.sme_role === 'agent') return res.status(403).json(withWhy({ error: 'policy_denied', reasons: ['owner_only'] }));
+  const { kind, id, disputed, reason } = req.body || {};
+  const list = kind === 'bill' ? req.tenant.payables : kind === 'invoice' ? req.tenant.invoices : null;
+  const item = list && list.find((x) => x.id === id);
+  if (!item) return res.status(404).json(withWhy({ error: 'not_found', reasons: [kind === 'bill' ? 'bill_or_verified_payee_not_found' : 'invoice_not_found'] }));
+  if (disputed) item.dispute = { reason: String(reason || 'quality or quantity dispute').slice(0, 120), by: req.sme.sme_role, at: new Date().toISOString() };
+  else delete item.dispute;
+  audit.append(req.sme.tenant_id, { actor: req.smeActor, action: disputed ? `dispute.open.${kind}` : `dispute.settle.${kind}`, tier: 'SUGGEST', decision: 'allow', target: id, metadata: { reason: item.dispute ? item.dispute.reason : null, amount: item.amount } });
+  res.json({ id, kind, dispute: item.dispute || null });
+});
+
 router.get('/:tid/gst', gate('view_gst'), (req, res) => {
   audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'view.gst', tier: 'READ', decision: 'allow' });
   res.json(gst.calendar(req.tenant));
@@ -172,13 +195,19 @@ router.post('/:tid/actions/:id/stepup', (req, res) => {
 });
 
 router.post('/:tid/actions/:id/approve', (req, res) => {
-  const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: true, confirmAmount: req.body?.confirm_amount, otp: req.body?.otp });
+  const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: true, confirmAmount: req.body?.confirm_amount, otp: req.body?.otp, kfsAck: req.body?.kfs_ack });
   if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });
 
 router.post('/:tid/actions/:id/reject', (req, res) => {
   const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: false, reason: req.body?.reason });
+  if (r.error) return res.status(r.status).json(withWhy(r));
+  res.json(r);
+});
+
+router.post('/:tid/actions/:id/cooling-off-exit', (req, res) => {
+  const r = actions.exitCoolingOff({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id });
   if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });

@@ -111,3 +111,9 @@ select{background:#0e1630;color:var(--text);border:1px solid var(--line);border-
 .wi-out{margin-top:12px;padding:10px 12px;border-radius:10px;background:#0e1630;border:1px solid var(--line);font-size:13px;line-height:1.5}.wi-out.bad{border-color:rgba(255,93,108,.55)}.wi-out.good{border-color:rgba(46,204,143,.5)}
 #wiReset{margin-top:8px}
 @media(max-width:800px){.wi-grid{grid-template-columns:1fr 1fr}}@media(max-width:480px){.wi-grid{grid-template-columns:1fr}}
+/* v1.6 India rules pack */
+.tag2{display:inline-block;margin-top:3px;margin-right:4px;font-size:11px;padding:1px 6px;border-radius:5px;background:rgba(91,140,255,.12);color:#a9c0ff}.tag2.b{background:rgba(245,176,65,.12);color:var(--warn)}
+.nowrap{white-space:nowrap}
+.comp{list-style:none;margin:0;padding:0;max-height:420px;overflow:auto}.comp li{display:grid;grid-template-columns:52px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.comp .cd{font-weight:600;color:var(--acc)}.comp .late{color:#c9a86a}
+.kfs summary{cursor:pointer;color:var(--acc);font-size:12px;margin-top:6px}.kfsdl{font-size:12px;margin:6px 0}.kfsack{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:6px;color:var(--text)}.kfsack input{width:auto}
+.tag2{white-space:nowrap}
