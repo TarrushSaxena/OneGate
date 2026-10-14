@@ -10,6 +10,7 @@ const members = new Map(); // email -> { tenant_id, sme_role }
 const DEMO_MEMBERS = [
   ['owner.ananya@company.com', 'sme_ananya_textiles', SME_ROLES.OWNER],
   ['accounts.ananya@company.com', 'sme_ananya_textiles', SME_ROLES.ACCOUNTANT],
+  ['viewer.ananya@company.com', 'sme_ananya_textiles', SME_ROLES.VIEWER],
   ['owner.chai@company.com', 'sme_chai_point_cafe', SME_ROLES.OWNER],
   ['owner.pixelforge@company.com', 'sme_pixelforge_studio', SME_ROLES.OWNER],
   ['viewer.pixelforge@company.com', 'sme_pixelforge_studio', SME_ROLES.VIEWER],

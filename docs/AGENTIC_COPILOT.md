@@ -80,7 +80,7 @@ A mandate is a programmable spending policy, the same idea as an e-mandate or UP
 
 ## 5. Step-up codes (`backend/sme/stepup.js`)
 
-Approving a payment or loan application, and signing a mandate, needs a 6-digit code on top of the session. A code is bound to one tenant, one user, one action and one amount; stored only as a salted SHA-256 hash; valid for 5 minutes; 3 attempts; single use; compared in constant time. In the sandbox the code is returned as a "sandbox SMS" so the demo runs anywhere; set `SME_STEPUP_DELIVERY=sms` to stop returning it. A stolen session alone can no longer approve anything.
+Approving a payment or loan application, and signing a mandate, needs a 6-digit code on top of the session. A code is bound to one tenant, one user, one action and one amount; stored only as a salted SHA-256 hash; valid for 5 minutes; 3 attempts; single use; compared in constant time. In the sandbox the code is returned as a "sandbox SMS", which the dashboard shows on a simulated owner's phone, never on the approval card, so the demo runs anywhere; set `SME_STEPUP_DELIVERY=sms` to stop returning it. A stolen session alone can no longer approve anything.
 
 ## 6. Privacy: share the score, not the books (`backend/sme/privacy.js`)
 
@@ -132,7 +132,19 @@ Every reason code the system produces (policy, mandates, step-up, discounts, gua
 
 `GET /api/sme/:tid/explain?codes=…` exposes the mapping.
 
-## 10. Threat model additions for an acting agent
+## 10. Treasury cockpit (`backend/sme/cockpit.js`, `frontend/sme.*`)
+
+The dashboard opens on what the agent did, not on a chat box. `GET /cockpit` is read-only (it writes nothing to the audit chain or the queue) and returns:
+
+- **Runway (next 45 days):** cash today, the low point if nothing changes, the plan waiting for the owner (reminders plus any loan application), and the low point if the owner approves it. The "after" figure comes from the same `simulate()` the planner uses, fed only with actions actually waiting in the queue, so it matches the planner's own output (tested).
+- **Three lanes:** *paid under a mandate* (executed actions that carry a mandate id and receipt), *waiting for you* (pending approvals), and *blocked by policy* (held-back early payments, invoice notes that tried to instruct the AI, and the latest audited denials, each with its audit sequence number and a why-not card). Viewers don't see audited denials or the chain.
+- **Guardrails:** audit-chain status and head hash, numeric firewall, injection guard, and whether the planner is deterministic or LLM with a grounding check.
+
+UI changes: a role switcher (owner, accountant and viewer for Ananya) makes separation of duties visible, and a non-owner sees *Approve · owner only*. One-time codes appear on a simulated **owner's phone** panel instead of on the approval card. The chat is a side drawer opened from *Ask copilot*. The 8-step plan trace sits under *How the agent planned it*.
+
+**Tamper drill** (`POST /audit/tamper-drill`, owner or accountant): copies the tenant's chain, adds ₹1 to one amount in the copy, and re-verifies. Verification fails at exactly that entry because its recomputed hash no longer matches the stored one. The live chain is never modified, and the drill itself is audited.
+
+## 11. Threat model additions for an acting agent
 
 | Threat | Control | Test |
 |---|---|---|
@@ -147,11 +159,11 @@ Every reason code the system produces (policy, mandates, step-up, discounts, gua
 | Agent drains cash chasing discounts | Hurdle rate + joint cash-buffer check across all offers | `sme-05` buffer and joint-offer tests |
 | Opaque refusals push owners to bypass the tool | Why-not card on every refusal | `sme-05` why-not tests |
 
-## 11. Try it
+## 12. Try it
 
 ```bash
 cd backend && npm install && npm run provision:demo && npm start
 # http://localhost:3000/sme.html
 ```
 
-Ananya owner → **Plan my cash gap** → approve the loan (code shown as sandbox SMS). Chai Point owner → sign a mandate for FreshFarm Dairy → **Run autopilot now** (pays the bill, queues two early-pay discounts). Ananya → *Supplier discounts & GST* → **Why not?**. Optional: `SME_LLM_API_KEY=... SME_LLM_MODEL=... npm start` to switch the copilot to LLM tool-calling.
+Ananya owner → **Plan my cash gap** → approve the loan (the code arrives on the owner's phone panel). Switch *View as* to Accountant to see approval locked; press **Run tamper drill**. Chai Point owner → sign a mandate for FreshFarm Dairy → **Run autopilot now** (pays the bill, queues two early-pay discounts). Ananya → *Supplier discounts & GST* → **Why not?**. Optional: `SME_LLM_API_KEY=... SME_LLM_MODEL=... npm start` to switch the copilot to LLM tool-calling.
