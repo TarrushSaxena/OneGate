@@ -53,7 +53,7 @@ function whatIf(tenant, input = {}, horizon = 45) {
   const gap = Math.max(0, Math.round(after.safety_buffer - a.lowest.low));
   let financing = null;
   if (gap > 0) {
-    const m = matchFinancing(tenant, { amount: Math.ceil(gap / 10000) * 10000, urgency_days: Math.max(1, Math.round((toMs(a.first_breach || a.lowest.date) - asOfMs) / DAY)) });
+    const m = matchFinancing(tenant, { amount: Math.ceil(gap / 10000) * 10000, urgency_days: Math.max(1, Math.round((toMs(a.first_breach || a.lowest.date) - asOfMs) / DAY)), receivables: receivables(tenant) });
     const r = m.recommendation && m.options.find((o) => o.product_id === m.recommendation.product_id);
     financing = r ? { product_id: r.product_id, lender: r.lender, apr_pct: r.apr_pct, amount: Math.ceil(gap / 10000) * 10000, est_total_cost: r.est_total_cost, disbursal_days: r.disbursal_days } : { none_eligible: true };
   }
