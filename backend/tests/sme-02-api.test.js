@@ -76,7 +76,13 @@ test('payment: accountant proposes, accountant cannot approve, owner must re-con
   assert.strictEqual(byAcc.status, 403);
   const wrong = await fetchApi(`/api/sme/${A}/actions/${action.id}/approve`, { method: 'POST', token: T.owner, body: { confirm_amount: 1 } });
   assert.strictEqual(wrong.status, 400);
-  const ok = await fetchApi(`/api/sme/${A}/actions/${action.id}/approve`, { method: 'POST', token: T.owner, body: { confirm_amount: bill.amount } });
+  const noOtp = await fetchApi(`/api/sme/${A}/actions/${action.id}/approve`, { method: 'POST', token: T.owner, body: { confirm_amount: bill.amount } });
+  assert.strictEqual(noOtp.status, 401, 'payments need a step-up code, a session alone is not enough');
+  const accChl = await fetchApi(`/api/sme/${A}/actions/${action.id}/stepup`, { method: 'POST', token: T.accountant });
+  assert.strictEqual(accChl.status, 403, 'only the owner can request an approval code');
+  const chl = (await fetchApi(`/api/sme/${A}/actions/${action.id}/stepup`, { method: 'POST', token: T.owner })).data;
+  assert.match(chl.sandbox_code, /^\d{6}$/);
+  const ok = await fetchApi(`/api/sme/${A}/actions/${action.id}/approve`, { method: 'POST', token: T.owner, body: { confirm_amount: bill.amount, otp: { challenge_id: chl.challenge_id, code: chl.sandbox_code } } });
   assert.strictEqual(ok.status, 200);
   const done = ok.data;
   assert.strictEqual(done.action.status, 'executed');
