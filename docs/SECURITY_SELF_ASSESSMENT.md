@@ -52,7 +52,7 @@ Express ─ authenticate (core) ─▶ /api/sme router
 - The verified beneficiary allowlist (sandbox data)
 - Server-side membership
 
-The copilot does not let a language model call tools. It is a deterministic intent router (`copilot.js`). It can only *propose* actions through the same `actions.propose()` path a human uses, so it never holds more authority than the user it serves.
+By default the copilot is a deterministic intent router and multi-step planner (`copilot.js`, `agent.js`). Since v1.2 an optional LLM can choose which registered tool to call next; it never names a tenant, cannot call a DENY capability (none exists as a tool), and its final answer must pass a numeric grounding check or it is discarded (see [AGENTIC_COPILOT.md](AGENTIC_COPILOT.md)). Either way the agent can only *propose* actions through the same `actions.propose()` path a human uses, so it never holds more authority than the user it serves. The autopilot acts as its own `agent` role, which can never approve.
 
 # 3. Permission model
 
@@ -97,8 +97,8 @@ Limits and the allowlist are **re-checked at approval time**, not only when the 
 | LLM01 Prompt injection (indirect) | Invoice and counterparty notes are treated as data. Flagged notes are withheld from the copilot and the user is warned. | `sme-01` "flags the planted injection note"; `sme-02` "ignores injected invoice notes" |
 | LLM02 Sensitive information disclosure | No secrets in the copilot's context. PII redaction before audit. Masked account numbers. | `sme-01` redaction test |
 | LLM05 Improper output handling | Dashboard HTML-escapes every value it renders, model output included | code review: `esc()` in `sme.js` |
-| LLM06 Excessive agency | Four-tier model, DENY list, owner approval, hard limits, allowlist, TTL | sections 3–4 tests |
-| LLM09 Misinformation | Numbers come from deterministic tools, never invented. Forecasts give low/base/high ranges and publish their backtest error. | `sme-01` forecast and backtest tests |
+| LLM06 Excessive agency | Four-tier model, DENY list (no tool exists for it), owner approval with amount re-type and one-time code, hard limits, allowlist, TTL; autonomy only inside owner-signed mandates; the agent role can never approve | sections 3–4 tests; `sme-04` mandate, self-approval and refused-tool tests |
+| LLM09 Misinformation | Numbers come from deterministic tools. An LLM answer with any amount not found in a tool result is discarded (grounding check). Forecasts give low/base/high ranges and publish their backtest error. | `sme-01` forecast and backtest tests; `sme-04` grounding tests |
 | Social engineering / phishing | Detector for bank-detail-change, urgency, unusual rails and OTP/CVV requests. On a hit the copilot refuses to pay and tells the user to verify by phone. Reminder drafts warn customers that OneGate never changes bank details by email. | `sme-01` "refuses phishing-style payment redirection"; reminder-draft test |
 
 # 6. Red-team results
@@ -128,7 +128,8 @@ Limits and the allowlist are **re-checked at approval time**, not only when the 
 | Regex-based injection/phishing detection | Novel phrasing can evade it | Defence in depth: policy, allowlist, owner approval | Add a classifier second opinion; collect red-team corpus |
 | State is in memory (actions, audit chain, membership) | Lost on restart; a host-level attacker could rewrite the whole chain | Sandbox only; chain detects partial edits | Persist to append-only store; anchor chain head hourly to an external log |
 | Static demo membership table | Not an onboarding flow | Demo users only | Membership admin with invitations and MFA for owners |
-| No step-up MFA on approval | A stolen owner session could approve | Amount re-type, limits, allowlist, 24 h TTL, `SameSite=Strict` | WebAuthn / OTP step-up for EXECUTE approvals |
+| Step-up codes delivered in the API response (sandbox) | In the sandbox anyone holding the owner session also sees the code | Codes bound to action + amount, 5 min, 3 tries, single use; `SME_STEPUP_DELIVERY=sms` stops returning them | Real SMS/WhatsApp delivery or WebAuthn passkeys |
+| Autonomous payments under a mandate | A mis-set mandate could pay a real but unwanted bill | One verified payee, per-payment and monthly caps, 90-day expiry, cash-buffer rule, revoke and pause, all audited | Per-mandate notifications and a daily digest of autonomous payments |
 | CORS is `*` on the platform API | Wider surface than needed (cookie is `SameSite=Strict`, which limits impact) | Strict cookie | Restrict origins in production |
 | No security headers (CSP/HSTS) or per-route rate limit on `/api/sme` | XSS impact and brute force | Output escaping; login lockout | Add `helmet` CSP and rate limits |
 | Platform token also stored in `localStorage` by the older employee UI | Readable by an XSS | SME dashboard uses the cookie only | Move the rest of the app to cookie-only |

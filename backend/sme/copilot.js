@@ -11,6 +11,7 @@ const { matchFinancing } = require('./financing');
 const { detectInjection, detectPhishing, redactPII } = require('./guard');
 const actions = require('./actions');
 const audit = require('./auditChain');
+const agent = require('./agent');
 
 const fmt = (n) => `${n < 0 ? '-' : ''}₹${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
 
@@ -28,6 +29,7 @@ function parseAmount(text) {
 
 function intentOf(text) {
   const t = text.toLowerCase();
+  if (/\b(plan|gap|shortfall|short on cash|cash crunch|cover (the|my)|survive|what should i do|get me through|fix my cash)\b/.test(t) && !/\b(loan|financ\w*|borrow|credit line|overdraft|working capital)\b/.test(t)) return 'plan';
   if (/\b(remind|reminder)\b|\b(send|draft|write)\b.*\bfollow[- ]?up\b/.test(t)) return 'remind';
   if (/\b(pay|payment|schedule)\b.*\b(bill|supplier|vendor)\b|\bpay\b.*\b(yarn|logistics|landlord)\b/.test(t)) return 'pay';
   if (/\b(loan|financ|credit line|overdraft|borrow|working capital)\b/.test(t)) return 'financing';
@@ -60,6 +62,10 @@ function handle({ tenantId, actor, message }) {
     };
   }
 
+  if (intent === 'plan') {
+    const p = agent.planCashGap({ tenantId, actor, horizonDays: 45 });
+    return { intent: 'plan', planner: p.planner, reply: p.reply, steps: p.steps, cards: p.cards, tools: p.steps.map((s) => s.tool), data: { plan: p.result, gap: p.gap, breach_date: p.breach_date } };
+  }
   if (intent === 'forecast' || intent === 'overview') {
     const f = forecast(tenant); out.tools.push('forecast');
     const [h30, h60, h90] = f.horizons;
@@ -112,4 +118,23 @@ function handle({ tenantId, actor, message }) {
   return out;
 }
 
-module.exports = { handle, parseAmount, intentOf };
+/**
+ * respond(): async entry point used by the API.
+ * Guards run first and are never delegated to a model. If an LLM is configured
+ * the tool-calling agent plans the answer; any failure (timeout, bad JSON,
+ * unknown tool, ungrounded number) falls back to the deterministic router.
+ */
+async function respond({ tenantId, actor, message }) {
+  const text = String(message || '').slice(0, 2000);
+  if (!agent.llmConfig().enabled || detectInjection(text).flagged || detectPhishing(text).flagged) return handle({ tenantId, actor, message: text });
+  try {
+    const r = await agent.runLLM({ tenantId, actor, message: text });
+    return { intent: 'agent', ...r, tools: r.steps.map((s) => s.tool) };
+  } catch (e) {
+    audit.append(tenantId, { actor, action: 'agent.llm_fallback', tier: 'READ', decision: 'fallback', metadata: { reason: e.message, ungrounded: e.ungrounded || null } });
+    const out = handle({ tenantId, actor, message: text });
+    return { ...out, planner: out.planner || 'deterministic', fallback_reason: e.message };
+  }
+}
+
+module.exports = { handle, respond, parseAmount, intentOf };

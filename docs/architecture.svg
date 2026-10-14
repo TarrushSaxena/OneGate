@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="Inter, Segoe UI, Roboto, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8d9bc4"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff5d6c"/></marker>
+    <style>
+      .t{fill:#e8ecf7;font-size:15px;font-weight:700}
+      .s{fill:#a9b5d9;font-size:12px}
+      .k{fill:#8d9bc4;font-size:11px;letter-spacing:.06em;font-weight:700}
+      .l{stroke:#8d9bc4;stroke-width:1.6;fill:none;marker-end:url(#a)}
+      .d{stroke:#ff5d6c;stroke-width:1.4;fill:none;stroke-dasharray:5 4;marker-end:url(#r)}
+      .f{stroke:#f5b041;stroke-width:1.4;fill:none;stroke-dasharray:5 4;marker-end:url(#a)}
+    </style>
+  </defs>
+  <rect width="1200" height="800" fill="#0b1020"/>
+  <text x="40" y="44" fill="#e8ecf7" font-size="22" font-weight="800">OneGate SME: how a request becomes a safe action</text>
+  <text x="40" y="68" class="s">Authority comes from code (policy, approvals, mandates), never from the language model. Every box writes to the hash-chained audit trail.</text>
+
+  <!-- Row 1: inputs -->
+  <rect x="40" y="100" width="220" height="92" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="58" y="126" class="k">INPUT</text><text x="58" y="150" class="t">Owner / accountant</text><text x="58" y="170" class="s">chat, dashboard buttons</text>
+
+  <rect x="40" y="212" width="220" height="92" rx="12" fill="#121a30" stroke="#2c4a9a"/>
+  <text x="58" y="238" class="k">INPUT · AUTONOMOUS</text><text x="58" y="262" class="t">Autopilot scheduler</text><text x="58" y="282" class="s">daily run as role "agent"</text>
+
+  <rect x="300" y="100" width="250" height="204" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="318" y="126" class="k">LAYER 1 · IDENTITY &amp; SCOPE</text>
+  <text x="318" y="152" class="t">Session + tenant scope</text>
+  <text x="318" y="174" class="s">HttpOnly JWT cookie</text>
+  <text x="318" y="194" class="s">membership → one SME only</text>
+  <text x="318" y="214" class="s">roles: owner · accountant ·</text>
+  <text x="318" y="232" class="s">viewer · agent (never approves)</text>
+  <text x="318" y="258" class="t">Input guard</text>
+  <text x="318" y="278" class="s">injection · phishing · PII redaction</text>
+  <text x="318" y="295" fill="#ff5d6c" font-size="11">attacks stop here, before any model</text>
+
+  <rect x="590" y="100" width="270" height="204" rx="12" fill="#121a30" stroke="#5b8cff"/>
+  <text x="608" y="126" class="k">LAYER 2 · PLANNER</text>
+  <text x="608" y="152" class="t">LLM tool-calling loop</text>
+  <text x="608" y="174" class="s">picks the next tool, max 6 steps,</text>
+  <text x="608" y="192" class="s">max 3 proposals, no tenant param</text>
+  <text x="608" y="226" class="t">Deterministic planner</text>
+  <text x="608" y="248" class="s">forecast → debtors → reminders →</text>
+  <text x="608" y="266" class="s">financing → simulate (always on)</text>
+  <text x="608" y="290" fill="#f5b041" font-size="11.5">falls back on timeout · bad tool · ungrounded ₹</text>
+
+  <rect x="900" y="100" width="260" height="204" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="918" y="126" class="k">LAYER 3 · TOOL REGISTRY</text>
+  <text x="918" y="154" fill="#2ecc8f" font-size="13" font-weight="700">READ</text><text x="980" y="154" class="s">forecast · debtors · bills ·</text><text x="980" y="172" class="s">what-if simulation</text>
+  <text x="918" y="202" fill="#5b8cff" font-size="13" font-weight="700">SUGGEST</text><text x="990" y="202" class="s">draft reminder ·</text><text x="990" y="220" class="s">financing match</text>
+  <text x="918" y="250" fill="#f5b041" font-size="13" font-weight="700">EXECUTE</text><text x="990" y="250" class="s">propose payment /</text><text x="990" y="268" class="s">reminder / loan (queued)</text>
+  <text x="918" y="292" fill="#ff5d6c" font-size="12" font-weight="700">DENY: no tool exists</text>
+
+  <path class="l" d="M260 146 H300"/>
+  <path class="l" d="M260 258 H300"/>
+  <path class="l" d="M550 202 H590"/>
+  <path class="l" d="M860 202 H900"/>
+
+  <!-- Row 2 -->
+  <rect x="900" y="350" width="260" height="170" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="918" y="376" class="k">LAYER 4 · POLICY ENGINE</text>
+  <text x="918" y="402" class="t">Checked twice</text>
+  <text x="918" y="424" class="s">at proposal and at execution</text>
+  <text x="918" y="448" class="s">verified-payee allowlist</text>
+  <text x="918" y="468" class="s">₹5,00,000 per payment · ₹8,00,000/day</text>
+  <text x="918" y="488" class="s">cash-buffer impact warning</text>
+  <text x="918" y="508" class="s">owner-only actions</text>
+  <path class="l" d="M1030 304 V350"/>
+
+  <rect x="560" y="350" width="300" height="170" rx="12" fill="#121a30" stroke="#f5b041"/>
+  <text x="578" y="376" class="k">LAYER 5A · HUMAN IN THE LOOP</text>
+  <text x="578" y="402" class="t">Owner approval card</text>
+  <text x="578" y="426" class="s">re-type the exact amount</text>
+  <text x="578" y="446" class="s">+ one-time code bound to this action</text>
+  <text x="578" y="466" class="s">and amount (5 min, 3 tries, single use)</text>
+  <text x="578" y="486" class="s">idempotency keys · 24 h expiry</text>
+  <text x="578" y="506" class="s">accountant can propose, never approve</text>
+  <path class="l" d="M900 420 H860"/>
+
+  <rect x="220" y="350" width="300" height="170" rx="12" fill="#121a30" stroke="#2ecc8f"/>
+  <text x="238" y="376" class="k">LAYER 5B · BOUNDED AUTONOMY</text>
+  <text x="238" y="402" class="t">Spending mandate</text>
+  <text x="238" y="426" class="s">owner signs with a one-time code</text>
+  <text x="238" y="446" class="s">one verified payee · ≤ ₹2,00,000 each</text>
+  <text x="238" y="466" class="s">≤ ₹5,00,000/month · ≤ 90 days</text>
+  <text x="238" y="486" class="s">never if forecast breaches the buffer</text>
+  <text x="238" y="506" class="s">→ escalate to 5A · revoke anytime</text>
+  <path class="l" d="M1000 520 C1000 560, 380 560, 370 520"/>
+
+  <rect x="40" y="350" width="150" height="170" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="58" y="376" class="k">KILL SWITCH</text>
+  <text x="58" y="402" class="t">Pause</text>
+  <text x="58" y="424" class="s">owner pauses</text>
+  <text x="58" y="442" class="s">autopilot or</text>
+  <text x="58" y="460" class="s">revokes any</text>
+  <text x="58" y="478" class="s">mandate instantly</text>
+  <path class="l" d="M190 435 H220"/>
+
+  <!-- Row 3 -->
+  <rect x="220" y="600" width="300" height="150" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="238" y="626" class="k">LAYER 6 · SANDBOX EXECUTOR</text>
+  <text x="238" y="652" class="t">Receipts, no real rails</text>
+  <text x="238" y="676" class="s">sandbox NEFT · sandbox email</text>
+  <text x="238" y="696" class="s">loan: consent artefact (purpose,</text>
+  <text x="238" y="716" class="s">scope, 30 days, revocable)</text>
+  <path class="l" d="M370 520 V600"/>
+  <path class="l" d="M710 520 C710 570, 520 580, 470 600"/>
+
+  <rect x="560" y="600" width="300" height="150" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="578" y="626" class="k">PRIVACY</text>
+  <text x="578" y="652" class="t">Share the score, not the books</text>
+  <text x="578" y="676" class="s">lender gets 6 banded features +</text>
+  <text x="578" y="696" class="s">SHA-256 ledger commitment; never</text>
+  <text x="578" y="716" class="s">transactions, names or balances</text>
+  <path class="l" d="M520 675 H560"/>
+
+  <rect x="900" y="600" width="260" height="150" rx="12" fill="#121a30" stroke="#22305a"/>
+  <text x="918" y="626" class="k">LAYER 7 · AUDIT</text>
+  <text x="918" y="652" class="t">Hash-chained log per SME</text>
+  <text x="918" y="676" class="s">every tool call, plan step,</text>
+  <text x="918" y="696" class="s">denial, code, approval, payment</text>
+  <text x="918" y="716" class="s">tamper → chain breaks visibly</text>
+
+  <!-- Output grounding -->
+  <rect x="40" y="600" width="150" height="150" rx="12" fill="#121a30" stroke="#ff5d6c"/>
+  <text x="58" y="626" class="k">OUTPUT CHECK</text>
+  <text x="58" y="652" class="t">Grounding</text>
+  <text x="58" y="676" class="s">every ₹ amount in</text>
+  <text x="58" y="694" class="s">an LLM answer must</text>
+  <text x="58" y="712" class="s">match a tool result,</text>
+  <text x="58" y="730" class="s">else fallback</text>
+</svg>

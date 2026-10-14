@@ -34,9 +34,9 @@
     $('#login').hidden = true; $('#app').hidden = false;
     $('#who').innerHTML = `${esc(ME.tenant_name)} · <b>${esc(ME.sme_role)}</b> <button class="ghost" id="logout">Switch</button>`;
     $('#logout').onclick = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); showLogin(); };
-    $('#chat').innerHTML = '';
+    $('#chat').innerHTML = ''; $('#trace').innerHTML = '';
     say('a', `Hi! I'm the OneGate copilot for ${ME.tenant_name}. I can read your books and draft things on my own. Anything that moves money or contacts customers waits for the owner's approval.`);
-    await Promise.all([loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin()]);
+    await Promise.all([loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare()]);
   }
 
   async function loadOverview() {
@@ -85,25 +85,114 @@
     };
   }
 
+  const challenges = {}; // action id -> step-up challenge
   async function loadApprovals() {
     const { actions } = await api(`/api/sme/${TID}/actions`);
     const owner = ME.sme_role === 'owner';
-    $('#approvals').innerHTML = actions.length ? actions.slice(0, 8).map((a) => `
+    $('#approvals').innerHTML = actions.length ? actions.slice(0, 10).map((a) => {
+      const chl = challenges[a.id];
+      return `
       <div class="card"><div class="t">${esc(a.summary)}</div>
       <div class="muted">${esc(a.tier)} · proposed by ${esc(a.proposed_by.sme_role)} via ${esc(a.proposed_by.source)} <span class="st ${esc(a.status)}">${esc(a.status.replace(/_/g, ' '))}</span></div>
       ${a.warnings?.length ? `<div class="w">⚠ ${esc(a.warnings.join('; ').replace(/_/g, ' '))}</div>` : ''}
       ${a.preview ? `<details><summary class="muted">Preview email</summary><pre class="muted" style="white-space:pre-wrap">${esc(a.preview.subject)}\n\n${esc(a.preview.body)}</pre></details>` : ''}
-      ${a.receipt ? `<div class="muted">Receipt ${esc(a.receipt.reference)}</div>` : ''}
-      ${a.status === 'pending_approval' && owner ? `<div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<button data-ap="${a.id}">Approve</button><button class="ghost" data-rj="${a.id}">Reject</button></div>` : ''}
-      </div>`).join('') : '<div class="muted">Nothing waiting. Ask the copilot to pay a bill or send a reminder.</div>';
+      ${a.receipt ? `<div class="muted">Receipt ${esc(a.receipt.reference)}${a.mandate_id ? ` · paid by autopilot under ${esc(a.mandate_id)}` : ''}</div>` : ''}
+      ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner's phone · <span class="sms">sandbox SMS: ${esc(chl.sandbox_code || '')}</span></div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
+        : `<div class="row">${a.type === 'schedule_payment' && !a.needs_step_up ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<button data-${a.needs_step_up ? 'su' : 'ap'}="${a.id}">Approve</button><button class="ghost" data-rj="${a.id}">Reject</button></div>`) : ''}
+      </div>`;
+    }).join('') : '<div class="muted">Nothing waiting. Ask the copilot to plan the cash gap, pay a bill or send a reminder.</div>';
     $('#approvals').onclick = async (e) => {
-      const ap = e.target.closest('[data-ap]'); const rj = e.target.closest('[data-rj]');
+      const su = e.target.closest('[data-su]'); const ap = e.target.closest('[data-ap]'); const rj = e.target.closest('[data-rj]');
       try {
-        if (ap) { const c = $(`[data-c="${ap.dataset.ap}"]`); await api(`/api/sme/${TID}/actions/${ap.dataset.ap}/approve`, { method: 'POST', body: { confirm_amount: c ? Number(c.value) : undefined } }); toast('Approved and executed in sandbox'); }
+        if (su) { challenges[su.dataset.su] = await api(`/api/sme/${TID}/actions/${su.dataset.su}/stepup`, { method: 'POST' }); return loadApprovals(); }
+        if (ap) {
+          const id = ap.dataset.ap; const c = $(`[data-c="${id}"]`); const o = $(`[data-o="${id}"]`);
+          await api(`/api/sme/${TID}/actions/${id}/approve`, { method: 'POST', body: { confirm_amount: c ? Number(c.value) : undefined, otp: challenges[id] ? { challenge_id: challenges[id].challenge_id, code: o ? o.value.trim() : '' } : undefined } });
+          delete challenges[id]; toast('Approved and executed in sandbox');
+        }
         if (rj) { await api(`/api/sme/${TID}/actions/${rj.dataset.rj}/reject`, { method: 'POST', body: { reason: 'owner_rejected' } }); toast('Rejected'); }
-      } catch (err) { toast(err.message === 'confirm_amount_mismatch' ? 'Amount does not match. Re-type the exact amount.' : `Blocked: ${err.message}`); }
+      } catch (err) {
+        const m = { confirm_amount_mismatch: 'Amount does not match. Re-type the exact amount.', stepup_code_wrong: 'Wrong code. Try again.', stepup_locked: 'Too many wrong codes. Request a new one.', stepup_code_expired: 'Code expired. Request a new one.' }[err.message];
+        if (['stepup_locked', 'stepup_code_expired', 'stepup_code_already_used'].includes(err.message) && ap) delete challenges[ap.dataset.ap];
+        toast(m || `Blocked: ${err.message}`);
+      }
       loadApprovals(); loadAudit(); loadOverview();
     };
+  }
+
+  // ---------- Agent: autopilot brief, plan trace ----------
+  const TIER = { get_cash_forecast: 'READ', list_overdue_receivables: 'READ', list_open_bills: 'READ', simulate_plan: 'READ', match_financing: 'SUGGEST', draft_reminder: 'SUGGEST', propose_reminder: 'EXECUTE', propose_payment: 'EXECUTE', propose_loan_application: 'EXECUTE' };
+  function obsLine(s) {
+    const o = s.observation || {};
+    if (o.error) return `refused: ${o.error.replace(/_/g, ' ')}`;
+    if (s.tool === 'get_cash_forecast') return `today ${inr(o.balance_today)} · lowest ${inr(o.lowest_point?.low)} on ${o.lowest_point?.date} · buffer ${inr(o.safety_buffer)}`;
+    if (s.tool === 'list_overdue_receivables') return `${inr(o.total_overdue)} overdue · top: ${(o.invoices || []).slice(0, 3).map((i) => i.invoice_id).join(', ')}`;
+    if (s.tool === 'match_financing') { const r = (o.options || []).find((x) => x.product_id === o.recommendation?.product_id); return r ? `best: ${r.lender} · ${r.apr_pct}% APR · total cost ${inr(r.est_total_cost)}` : 'no eligible product'; }
+    if (s.tool === 'simulate_plan') return `low point ${inr(o.lowest_before?.low)} → ${inr(o.lowest_after?.low)}${o.first_breach_after_plan ? ` · still touches buffer ${o.first_breach_after_plan}` : ' · stays above buffer'}`;
+    if (o.status === 'pending_approval') return `queued for owner: ${o.summary}${o.duplicate ? ' (already queued)' : ''}`;
+    if (o.status && o.status !== 'pending_approval' && o.action_id) return `already ${o.status.replace(/_/g, ' ')}: ${o.summary}`;
+    if (o.status === 'denied_by_policy') return `denied by policy: ${(o.reasons || []).join(', ')}`;
+    return JSON.stringify(o).slice(0, 120);
+  }
+  function renderTrace(steps, planner) {
+    $('#trace').innerHTML = (steps || []).map((s, i) => `<li style="animation-delay:${i * 90}ms"><span class="n">${s.step}</span><code>${esc(s.tool)}</code><span class="tier ${TIER[s.tool] || 'READ'}">${TIER[s.tool] || '?'}</span><span class="o muted">${esc(obsLine(s))}</span></li>`).join('')
+      + (steps?.length ? `<li style="grid-template-columns:1fr" class="muted">Planner: ${esc(planner || 'deterministic')} · every EXECUTE step waits for the owner · every step is in the audit chain</li>` : '');
+  }
+  async function loadBrief() {
+    const s = await api(`/api/sme/${TID}/autopilot`);
+    const r = s.last_run;
+    $('#pauseAuto').textContent = s.paused ? 'Resume autopilot' : 'Pause autopilot';
+    $('#pauseAuto').hidden = ME.sme_role !== 'owner';
+    $('#runAuto').hidden = $('#runPlan').hidden = ME.sme_role === 'viewer';
+    $('#briefMeta').textContent = s.paused ? 'paused by owner' : `runs every ${s.interval_min >= 1440 ? 'day' : `${s.interval_min} min`}${r ? ` · last run ${new Date(r.finished).toLocaleTimeString()}` : ''}`;
+    $('#brief').innerHTML = r ? `<div class="h">${esc(r.headline)}</div><ul>${r.events.map((e) => `<li><span class="ev ${e.kind}">${{ paid: 'Paid', escalated: 'Needs you', plan: 'Plan', reminder: 'Reminder', forecast: 'Forecast' }[e.kind] || 'Note'}</span> ${esc(e.text)}</li>`).join('')}</ul><div class="muted">${r.pending_approvals} action(s) waiting for the owner.</div>`
+      : '<div class="muted">No autopilot run yet. Run it now, or ask it to plan your cash gap.</div>';
+  }
+  $('#runPlan').onclick = async () => {
+    try { const p = await api(`/api/sme/${TID}/agent/plan`, { method: 'POST', body: {} }); renderTrace(p.steps, p.planner); say('a', p.reply); } catch (err) { toast(err.message); }
+    loadApprovals(); loadAudit(); loadOverview();
+  };
+  $('#runAuto').onclick = async () => {
+    try { const r = await api(`/api/sme/${TID}/autopilot/run`, { method: 'POST' }); if (r.skipped) toast('Autopilot is paused'); } catch (err) { toast(err.message); }
+    loadBrief(); loadApprovals(); loadAudit(); loadOverview(); loadMandates();
+  };
+  $('#pauseAuto').onclick = async () => {
+    const s = await api(`/api/sme/${TID}/autopilot`);
+    await api(`/api/sme/${TID}/autopilot/pause`, { method: 'POST', body: { paused: !s.paused } }); loadBrief(); loadAudit();
+  };
+
+  // ---------- Mandates ----------
+  let mdChallenge = null; let mdParams = null;
+  async function loadMandates() {
+    const ov = await api(`/api/sme/${TID}/overview`);
+    const names = [...new Set(ov.payables.map((b) => b.supplier))];
+    const { mandates } = await api(`/api/sme/${TID}/mandates`);
+    $('#mdForm').hidden = ME.sme_role !== 'owner';
+    if ($('#mdBen').dataset.t !== TID) { $('#mdBen').innerHTML = names.map((n) => `<option>${esc(n)}</option>`).join(''); $('#mdBen').dataset.t = TID; $('#mdOtp').innerHTML = ''; }
+    $('#mdBody').innerHTML = mandates.length ? mandates.map((m) => `<tr><td>${esc(m.beneficiary_name)} <span class="muted">${esc(m.account_masked)}</span></td><td class="r">${inr(m.max_per_payment)}</td><td class="r">${inr(m.monthly_cap)}</td><td>${esc(m.valid_until.slice(0, 10))}</td><td><span class="st ${m.status === 'active' ? 'executed' : 'rejected'}">${esc(m.status)}</span>${m.payments.length ? ` <span class="muted">${m.payments.length} paid</span>` : ''}</td><td class="r">${m.status === 'active' && ME.sme_role === 'owner' ? `<button class="ghost" data-rv="${m.id}">Revoke</button>` : ''}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="muted">No mandates. The agent cannot pay anyone on its own.</td></tr>';
+    $('#mdBody').onclick = async (e) => { const b = e.target.closest('[data-rv]'); if (!b) return; await api(`/api/sme/${TID}/mandates/${b.dataset.rv}/revoke`, { method: 'POST' }); toast('Mandate revoked'); loadMandates(); loadAudit(); };
+    window.__benByName = Object.fromEntries((ov.beneficiaries || []).map((b) => [b.name, b.id]));
+  }
+  $('#mdForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const name = $('#mdBen').value;
+    mdParams = { beneficiary_name: name, beneficiary_id: (window.__benByName || {})[name], max_per_payment: Number($('#mdPer').value), monthly_cap: Number($('#mdCap').value), valid_days: Number($('#mdDays').value), purpose: 'recurring supplier bills' };
+    try {
+      mdChallenge = (await api(`/api/sme/${TID}/mandates/challenge`, { method: 'POST', body: mdParams })).challenge;
+      $('#mdOtp').innerHTML = `<div class="otp"><div class="muted">Signing a mandate needs a code · <span class="sms">sandbox SMS: ${esc(mdChallenge.sandbox_code || '')}</span></div><div class="row"><input id="mdCode" placeholder="6-digit code" maxlength="6"><button id="mdSign">Confirm mandate</button></div></div>`;
+      $('#mdSign').onclick = async () => {
+        try { await api(`/api/sme/${TID}/mandates`, { method: 'POST', body: { ...mdParams, otp: { challenge_id: mdChallenge.challenge_id, code: $('#mdCode').value.trim() } } }); toast('Mandate signed'); $('#mdOtp').innerHTML = ''; }
+        catch (err) { toast(`Not signed: ${(err.data?.reasons || [err.message]).join(', ')}`); }
+        loadMandates(); loadAudit();
+      };
+    } catch (err) { toast(`Not allowed: ${(err.data?.reasons || [err.message]).join(', ').replace(/_/g, ' ')}`); }
+  };
+
+  async function loadShare() {
+    if (ME.sme_role === 'viewer') { $('#share').innerHTML = '<div class="muted">Viewers can’t see lender data.</div>'; return; }
+    const s = await api(`/api/sme/${TID}/privacy/lender-share`);
+    $('#share').innerHTML = `<dl class="share">${Object.entries(s.features).map(([k, v]) => `<dt>${esc(k.replace(/_/g, ' '))}</dt><dd>${esc(String(v))}</dd>`).join('')}</dl><div class="muted">Ledger commitment <code>${esc(s.ledger_commitment_sha256.slice(0, 16))}…</code><br>Never shared: ${esc(s.withheld.join(', ').replace(/_/g, ' '))}.</div>`;
   }
 
   async function loadAudit() {
@@ -133,14 +222,15 @@
     say('u', q);
     try {
       const r = await api(`/api/sme/${TID}/copilot`, { method: 'POST', body: { message: q } });
-      say('a', r.reply || '…', { sec: r.blocked || r.intent === 'phishing_warning', note: r.security_notice });
+      say('a', r.reply || '…', { sec: r.blocked || r.intent === 'phishing_warning', note: r.security_notice || (r.fallback_reason ? `LLM answer rejected (${r.fallback_reason.replace(/_/g, ' ')}); deterministic answer shown.` : '') });
+      if (r.steps?.length) { renderTrace(r.steps, r.planner); $('#briefPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       for (const c of r.cards || []) if (c.type === 'suggestion' && ME.sme_role !== 'viewer') {
         const b = document.createElement('button'); b.className = 'ghost'; b.textContent = c.label; b.style.alignSelf = 'flex-start';
         b.onclick = async () => { try { await api(`/api/sme/${TID}/actions`, { method: 'POST', body: c.propose }); toast('Queued for owner approval'); loadApprovals(); } catch (err) { toast(err.message); } b.remove(); };
         $('#chat').appendChild(b);
       }
     } catch (err) { say('a', `Sorry, that failed (${err.message}).`); }
-    loadApprovals(); loadAudit(); loadOverview();
+    loadApprovals(); loadAudit(); loadOverview(); loadBrief();
   }
   $('#ask').onsubmit = (e) => { e.preventDefault(); const q = $('#q').value; $('#q').value = ''; ask(q); };
   document.querySelector('.chips').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) ask(b.dataset.q); };

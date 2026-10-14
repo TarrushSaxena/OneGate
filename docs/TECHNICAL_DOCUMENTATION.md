@@ -92,7 +92,7 @@ Express (backend/server.js) ── core authenticate ──▶ /api/sme router (
 
 **Stack:** Node.js 20+, Express, Socket.IO (existing platform), plain HTML/CSS/JS for the dashboard, and `node:test` for tests. No database is needed for the demo: state is held in memory and rebuilt deterministically on start.
 
-**Design choice: no LLM in the action path.** The copilot maps a message to an intent with keyword rules, then calls deterministic tools. Every figure it states comes from a tool result, so it cannot invent amounts. It can only *propose* actions, through the same `actions.propose()` path a human uses, so it never holds more authority than the signed-in user. An LLM layer for nicer wording is on the roadmap. It would sit outside the policy boundary.
+**Design choice: no LLM in the action path.** By default the copilot maps a message to an intent with keyword rules, or runs the multi-step cash-gap planner, and calls deterministic tools. Every figure it states comes from a tool result. Since v1.2 an optional LLM can pick which tool to call next, but its answers must pass a numeric grounding check, and it can only *propose* actions through the same `actions.propose()` path a human uses. The planner, autopilot, mandates, step-up codes and lender data minimisation are documented in [AGENTIC_COPILOT.md](AGENTIC_COPILOT.md).
 
 # 5. Core algorithms
 
@@ -269,17 +269,17 @@ Environment variables are documented in the README. No secrets are needed for th
 - State is held in memory.
 - Membership is a static demo table.
 - Detection uses rules and heuristics.
-- There is no MFA step-up on approvals.
+- One-time codes are shown on screen in the sandbox instead of being sent by SMS.
 - The forecast band is a scenario range, not a calibrated interval.
 - Platform CORS is open, and there is no CSP or per-route rate limit yet.
 
 **Roadmap:**
 
 - Persistent append-only storage, with the chain head anchored to an external log
-- Passkey or OTP step-up for EXECUTE approvals
+- Real SMS delivery or passkeys for step-up codes
 - A calibrated forecast interval (quantile or Monte Carlo) and transaction categorisation
 - A classifier as a second opinion beside the rule guards, trained on a growing red-team set
-- Optional LLM wording on top of the deterministic tools
+- A federated credit model across lenders (FATE), fed by the banded features OneGate already shares
 - Account Aggregator (open-banking) consent connectors, TReDS and lender APIs, and accounting-software import
 - Docker Compose deployment
 

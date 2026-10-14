@@ -12,6 +12,11 @@ const policy = require('./policy');
 const actions = require('./actions');
 const audit = require('./auditChain');
 const copilot = require('./copilot');
+const agent = require('./agent');
+const autopilot = require('./autopilot');
+const mandates = require('./mandates');
+const stepup = require('./stepup');
+const { lenderShare } = require('./privacy');
 
 const router = express.Router();
 
@@ -47,7 +52,7 @@ router.get('/me', (req, res) => res.json({ ...req.sme, tenant_name: getTenant(re
 router.get('/:tid/overview', gate('view_overview'), (req, res) => {
   const f = forecast(req.tenant); const r = receivables(req.tenant);
   audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'view.overview', tier: 'READ', decision: 'allow' });
-  res.json({ profile: req.tenant.profile, forecast: { horizons: f.horizons, alerts: f.alerts, lowest_point: f.lowest_point }, receivables: { total_open: r.total_open, total_overdue: r.total_overdue, ageing: r.ageing }, payables: req.tenant.payables, pending_approvals: actions.list(req.sme.tenant_id).filter((a) => a.status === 'pending_approval').length });
+  res.json({ profile: req.tenant.profile, forecast: { horizons: f.horizons, alerts: f.alerts, lowest_point: f.lowest_point }, receivables: { total_open: r.total_open, total_overdue: r.total_overdue, ageing: r.ageing }, payables: req.tenant.payables, beneficiaries: req.tenant.beneficiaries, pending_approvals: actions.list(req.sme.tenant_id).filter((a) => a.status === 'pending_approval').length });
 });
 
 router.get('/:tid/forecast', gate('view_forecast'), (req, res) => {
@@ -74,9 +79,51 @@ router.post('/:tid/financing/match', gate('recommend_financing'), (req, res) => 
   res.json(m);
 });
 
-router.post('/:tid/copilot', (req, res) => {
-  res.json(copilot.handle({ tenantId: req.sme.tenant_id, actor: req.smeActor, message: req.body?.message }));
+router.post('/:tid/copilot', async (req, res, next) => {
+  try { res.json(await copilot.respond({ tenantId: req.sme.tenant_id, actor: req.smeActor, message: req.body?.message })); } catch (e) { next(e); }
 });
+
+// Multi-step agent: goal -> plan over guarded tools (forecast, receivables,
+// reminders, financing, simulation). EXECUTE steps become approval cards.
+router.post('/:tid/agent/plan', gate('recommend_financing'), (req, res) => {
+  const horizon = Math.min(90, Math.max(14, Number(req.body?.horizon_days) || 45));
+  res.json(agent.planCashGap({ tenantId: req.sme.tenant_id, actor: req.smeActor, horizonDays: horizon }));
+});
+router.get('/:tid/agent/tools', gate('view_overview'), (req, res) => {
+  const tools = agent.makeTools(req.sme.tenant_id, req.smeActor);
+  res.json({ llm_enabled: agent.llmConfig().enabled, tools: Object.entries(tools).map(([name, t]) => ({ name, tier: t.tier, description: t.desc, args: t.args })) });
+});
+
+// Autopilot: scheduled monitoring runs, morning brief, kill switch.
+router.get('/:tid/autopilot', gate('view_overview'), (req, res) => res.json(autopilot.status(req.sme.tenant_id)));
+router.post('/:tid/autopilot/run', gate('run_autopilot'), (req, res) => res.json(autopilot.runFor(req.sme.tenant_id, { trigger: 'manual', by: req.smeActor })));
+router.post('/:tid/autopilot/pause', (req, res) => {
+  const r = autopilot.setPaused(req.sme.tenant_id, req.smeActor, req.body?.paused !== false);
+  if (r.error) return res.status(r.status).json(r);
+  res.json(r);
+});
+
+// Spending mandates (bounded autonomy). Creation needs a one-time code.
+router.get('/:tid/mandates', gate('view_overview'), (req, res) => res.json({ mandates: mandates.list(req.sme.tenant_id), hard_limits: mandates.HARD }));
+router.post('/:tid/mandates/challenge', (req, res) => {
+  const r = mandates.requestCreate({ tenantId: req.sme.tenant_id, actor: req.smeActor, params: req.body || {} });
+  if (r.error) return res.status(r.status).json(r);
+  res.json(r);
+});
+router.post('/:tid/mandates', (req, res) => {
+  const { otp, ...params } = req.body || {};
+  const r = mandates.create({ tenantId: req.sme.tenant_id, actor: req.smeActor, params, otp });
+  if (r.error) return res.status(r.status).json(r);
+  res.status(201).json(r);
+});
+router.post('/:tid/mandates/:id/revoke', (req, res) => {
+  const r = mandates.revoke({ tenantId: req.sme.tenant_id, actor: req.smeActor, mandateId: req.params.id });
+  if (r.error) return res.status(r.status).json(r);
+  res.json(r);
+});
+
+// What a lender would see: banded features + ledger commitment, never the books.
+router.get('/:tid/privacy/lender-share', gate('recommend_financing'), (req, res) => res.json(lenderShare(req.tenant)));
 
 router.get('/:tid/actions', (req, res) => res.json({ actions: actions.list(req.sme.tenant_id) }));
 
@@ -87,8 +134,17 @@ router.post('/:tid/actions', (req, res) => {
   res.status(r.duplicate ? 200 : 201).json(r);
 });
 
+// Step-up: owner requests a one-time code bound to this action and amount.
+router.post('/:tid/actions/:id/stepup', (req, res) => {
+  const a = actions.get(req.sme.tenant_id, req.params.id);
+  if (!a) return res.status(404).json({ error: 'not_found' });
+  if (!policy.canApprove(req.sme.sme_role)) return res.status(403).json({ error: 'only_owner_can_approve' });
+  if (a.status !== 'pending_approval') return res.status(409).json({ error: `already_${a.status}` });
+  res.json(stepup.issue({ tenantId: req.sme.tenant_id, actor: req.smeActor, purpose: `approve.${a.type}`, ref: a.id, amount: a.params.amount ?? null }));
+});
+
 router.post('/:tid/actions/:id/approve', (req, res) => {
-  const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: true, confirmAmount: req.body?.confirm_amount });
+  const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: true, confirmAmount: req.body?.confirm_amount, otp: req.body?.otp });
   if (r.error) return res.status(r.status).json(r);
   res.json(r);
 });

@@ -18,6 +18,9 @@ const ACTIONS = {
   send_reminder: TIERS.EXECUTE,
   schedule_payment: TIERS.EXECUTE,
   submit_loan_application: TIERS.EXECUTE,
+  create_mandate: TIERS.EXECUTE,      // owner delegates a bounded spending mandate (needs OTP step-up)
+  revoke_mandate: TIERS.EXECUTE,      // owner kill switch for a mandate
+  run_autopilot: TIERS.SUGGEST,       // monitoring run: reads, drafts, proposes; pays only under a mandate
   add_beneficiary: TIERS.DENY,
   change_bank_details: TIERS.DENY,
   disable_audit: TIERS.DENY,
@@ -33,7 +36,16 @@ const ROLE_CAN = {
   owner: new Set([TIERS.READ, TIERS.SUGGEST, TIERS.EXECUTE]),
   accountant: new Set([TIERS.READ, TIERS.SUGGEST, TIERS.EXECUTE]), // may PROPOSE execute, never approve
   viewer: new Set([TIERS.READ]),
+  // The autonomous agent identity (autopilot). It may READ, SUGGEST and PROPOSE
+  // EXECUTE actions; it can never approve. Paying without a human click is only
+  // possible inside an owner-signed mandate (see mandates.js).
+  agent: new Set([TIERS.READ, TIERS.SUGGEST, TIERS.EXECUTE]),
 };
+
+// Actions whose approval needs a one-time code (step-up) on top of the session.
+const STEP_UP_REQUIRED = new Set(['schedule_payment', 'submit_loan_application', 'create_mandate']);
+// Owner-only actions even at proposal time.
+const OWNER_ONLY = new Set(['create_mandate', 'revoke_mandate']);
 
 /**
  * evaluate(action, ctx) -> { decision: 'allow'|'require_approval'|'deny', tier, reasons[] }
@@ -46,6 +58,7 @@ function evaluate(action, ctx = {}) {
   const role = ctx.sme_role;
   if (!role || !ROLE_CAN[role] || !ROLE_CAN[role].has(tier)) return { decision: 'deny', tier, reasons: [`role_${role || 'none'}_lacks_${tier}`] };
   if (tier !== TIERS.EXECUTE) return { decision: 'allow', tier, reasons: [] };
+  if (OWNER_ONLY.has(action) && role !== 'owner') return { decision: 'deny', tier, reasons: ['owner_only'] };
 
   const reasons = [];
   const warnings = [];
@@ -68,4 +81,6 @@ function evaluate(action, ctx = {}) {
 
 function canApprove(smeRole) { return smeRole === 'owner'; }
 
-module.exports = { TIERS, ACTIONS, LIMITS, evaluate, canApprove };
+function needsStepUp(action) { return STEP_UP_REQUIRED.has(action); }
+
+module.exports = { TIERS, ACTIONS, LIMITS, evaluate, canApprove, needsStepUp, STEP_UP_REQUIRED };
