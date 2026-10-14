@@ -38,6 +38,7 @@ const PROFILES = [
     payroll: 520000,
     rent: 160000,
     supplier_share: 0.5,
+    bills: { main: 'Gujarat Yarn Mills', second: 'Om Logistics', soon: ['Om Logistics', 48000] },
     seed: 11,
   },
   {
@@ -55,6 +56,7 @@ const PROFILES = [
     payroll: 210000,
     rent: 95000,
     supplier_share: 0.38,
+    bills: { main: 'FreshFarm Dairy', second: 'Prime Packaging', soon: ['FreshFarm Dairy', 22400] },
     seed: 23,
   },
   {
@@ -72,6 +74,7 @@ const PROFILES = [
     payroll: 560000,
     rent: 70000,
     supplier_share: 0.12,
+    bills: { main: 'CloudHost India', second: 'Prime Packaging', soon: ['CloudHost India', 18500] },
     seed: 37,
   },
 ];
@@ -160,18 +163,22 @@ function buildTenant(p) {
   let bal = openingBalance;
   for (const t of transactions) { bal = round2(bal + t.amount); t.balance_after = bal; }
 
+  // Bills and verified beneficiaries are sector-specific (a cafe pays a dairy, not a yarn mill).
+  const B = p.bills;
   const payables = [
-    { id: `${p.id}_bill1`, supplier: SUPPLIERS[0], amount: round2(p.monthly_revenue * p.supplier_share * 0.35), due: iso(SANDBOX_TODAY + 9 * DAY), status: 'open' },
-    { id: `${p.id}_bill2`, supplier: SUPPLIERS[3], amount: round2(p.monthly_revenue * 0.04), due: iso(SANDBOX_TODAY + 21 * DAY), status: 'open' },
+    { id: `${p.id}_bill1`, supplier: B.main, amount: round2(p.monthly_revenue * p.supplier_share * 0.35), due: iso(SANDBOX_TODAY + 9 * DAY), status: 'open' },
+    { id: `${p.id}_bill2`, supplier: B.second, amount: round2(p.monthly_revenue * 0.04), due: iso(SANDBOX_TODAY + 21 * DAY), status: 'open' },
+    // A small recurring bill due in 2 days: the case a spending mandate is for.
+    { id: `${p.id}_bill3`, supplier: B.soon[0], amount: B.soon[1], due: iso(SANDBOX_TODAY + 2 * DAY), status: 'open', recurring: 'weekly' },
   ];
 
   const beneficiaries = [
-    { id: `${p.id}_ben1`, name: SUPPLIERS[0], account_masked: 'XXXX4821', verified: true },
-    { id: `${p.id}_ben2`, name: SUPPLIERS[3], account_masked: 'XXXX1177', verified: true },
+    { id: `${p.id}_ben1`, name: B.main, account_masked: 'XXXX4821', verified: true },
+    { id: `${p.id}_ben2`, name: B.second, account_masked: 'XXXX1177', verified: true },
     { id: `${p.id}_ben3`, name: 'Landlord', account_masked: 'XXXX0042', verified: true },
   ];
 
-  const { seed, opening_balance, min_balance_target, monthly_revenue, payroll, rent, supplier_share, ...publicProfile } = p;
+  const { seed, bills, opening_balance, min_balance_target, monthly_revenue, payroll, rent, supplier_share, ...publicProfile } = p;
   return {
     profile: { ...publicProfile, opening_balance: openingBalance, current_balance: bal, as_of: iso(SANDBOX_TODAY) },
     recurring: { payroll: { amount: p.payroll, day: 7 }, rent: { amount: p.rent, day: 1 }, gst: { amount: round2(p.monthly_revenue * 0.06), day: 20 } },
