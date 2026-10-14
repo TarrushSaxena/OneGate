@@ -18,6 +18,8 @@ const stepup = require('../stepup');
 const agent = require('../agent');
 const autopilot = require('../autopilot');
 const mandates = require('../mandates');
+const discounting = require('../discounting');
+const gst = require('../gst');
 
 const outDir = path.join(__dirname, '../../../docs/sandbox-evidence');
 fs.mkdirSync(outDir, { recursive: true });
@@ -92,6 +94,24 @@ for (const [tid, tenant] of Object.entries(getTenants())) {
   const autoPaid = run1.brief.events.some((e) => e.kind === 'paid');
   const escalated = run1.brief.events.some((e) => e.kind === 'escalated');
 
+  // GST: next GSTR-3B, credit at risk, coverage.
+  const g = gst.calendar(tenant);
+  log(tid, 'gst_calendar', { next: g.next, advice: g.advice });
+
+  // Dynamic discounting: approve the early payments the autopilot queued; record why the rest were held back.
+  const scanBefore = discounting.scan(tenant);
+  log(tid, 'discount_scan', scanBefore.offers.map((o) => ({ supplier: o.supplier, amount: o.amount, pay_amount: o.pay_amount, annualised_return_pct: o.annualised_return_pct, hurdle_pct: o.hurdle_pct, worth_it: o.worth_it, why_not: (o.why_not || []).map((w) => w.title) })));
+  let captured = 0;
+  for (const a of actions.list(tid).filter((x) => x.status === 'pending_approval' && x.params.early_pay)) {
+    const c = stepup.issue({ tenantId: tid, actor: owner, purpose: `approve.${a.type}`, ref: a.id, amount: a.params.amount });
+    const d = actions.decide({ tenantId: tid, actor: owner, actionId: a.id, approve: true, confirmAmount: a.params.amount, otp: { challenge_id: c.challenge_id, code: c.sandbox_code } });
+    log(tid, 'approve_early_payment', { action_id: a.id, status: d.action?.status, summary: d.action?.summary, error: d.error || null });
+    if (d.action?.status === 'executed') captured += a.params.early_pay.discount_inr;
+  }
+  const heldBack = scanBefore.offers.filter((o) => !o.worth_it && o.eligible_terms);
+  const forged = actions.propose({ tenantId: tid, actor: owner, type: 'schedule_payment', params: { amount: 1000, beneficiary_id: tenant.beneficiaries[0].id, bill_id: tenant.payables[0].id, date: tenant.as_of, early_pay: { discount_pct: 99 } } });
+  log(tid, 'forged_discount', { denied: !!forged.denied, reasons: forged.verdict?.reasons, why_not: (forged.why_not || []).map((w) => w.title) });
+
   const v = audit.verify(tid);
   log(tid, 'audit_verify', v);
   fs.writeFileSync(path.join(outDir, `${tid}.audit.jsonl`), audit.list(tid, 10000).map((e) => JSON.stringify(e)).join('\n') + '\n');
@@ -104,6 +124,7 @@ for (const [tid, tenant] of Object.entries(getTenants())) {
     denials: [bad, big, bank].filter((x) => x.denied).length,
     planSteps: (res['T6 multi-step plan'].steps || []).length,
     planCards: (res['T6 multi-step plan'].cards || []).length,
+    gstNext: g.next, captured, heldBack: heldBack.length ? heldBack[0].why_not[0].title : null, forgedDenied: !!forged.denied,
     autopilot: autoPaid ? 'paid inside mandate' : escalated ? 'escalated to owner (would breach buffer)' : 'nothing due',
   });
 }
@@ -115,9 +136,9 @@ const md = [
   '',
   `Run ID: \`${runId}\`. Sandbox date: 2026-10-12. Synthetic data only, and no real money or messages leave the sandbox.`,
   '',
-  '| SME | Cash today | 30d base (low to high) | 90d base | Backtest MAPE (30d) | Overdue | Attacks blocked | Phishing warned | Policy denials | Owner-approved payment (amount + OTP) | Agent plan (tool steps / approval cards) | Autopilot with mandate | Audit chain |',
-  '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-  ...summary.map((s) => `| ${s.name} | ${inr(s.f.starting_balance)} | ${inr(s.f.horizons[0].base)} (${inr(s.f.horizons[0].low)} to ${inr(s.f.horizons[0].high)}) | ${inr(s.f.horizons[2].base)} | ${s.b.mape_pct}% | ${inr(s.r.total_overdue)} | ${s.blocked}/2 | ${s.phishingWarned ? 'yes' : 'no'} | ${s.denials}/3 | ${s.paymentExecuted ? 'executed after approval' : 'n/a'} | ${s.planSteps} / ${s.planCards} | ${s.autopilot} | ${s.v.valid ? `valid (${s.v.entries} entries)` : 'BROKEN'} |`),
+  '| SME | Cash today | 30d base (low to high) | 90d base | Backtest MAPE (30d) | Overdue | Attacks blocked | Phishing warned | Policy denials | Owner-approved payment (amount + OTP) | Agent plan (tool steps / approval cards) | Autopilot with mandate | Next GST (status, credit at risk) | Early-pay discounts | Audit chain |',
+  '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+  ...summary.map((s) => `| ${s.name} | ${inr(s.f.starting_balance)} | ${inr(s.f.horizons[0].base)} (${inr(s.f.horizons[0].low)} to ${inr(s.f.horizons[0].high)}) | ${inr(s.f.horizons[2].base)} | ${s.b.mape_pct}% | ${inr(s.r.total_overdue)} | ${s.blocked}/2 | ${s.phishingWarned ? 'yes' : 'no'} | ${s.denials}/3 | ${s.paymentExecuted ? 'executed after approval' : 'n/a'} | ${s.planSteps} / ${s.planCards} | ${s.autopilot} | ${s.gstNext ? `${inr(s.gstNext.net_cash_payable)} on ${s.gstNext.due}: ${s.gstNext.status}, ${inr(s.gstNext.itc_at_risk)} at risk` : 'none'} | ${s.captured ? `saved ${inr(s.captured)} (owner-approved)` : s.heldBack ? `held back: ${s.heldBack.toLowerCase()}` : 'none offered'}${s.forgedDenied ? '; forged discount denied' : ''} | ${s.v.valid ? `valid (${s.v.entries} entries)` : 'BROKEN'} |`),
   '',
   'Files:',
   '- `sandbox-run.jsonl`: every step, prompt, decision and result',

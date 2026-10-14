@@ -11,6 +11,15 @@
     if (!r.ok) throw Object.assign(new Error(data.error || r.statusText), { status: r.status, data });
     return data;
   }
+  // "Why not?" cards: rule, detail and the fix for any refusal.
+  const whyHtml = (list) => (list || []).map((w) => `<div class="why"><span class="rule">${esc(w.rule)}</span><b>${esc(w.title)}</b><div>${esc(w.detail)}</div><div class="fix">${esc(w.fix)}</div></div>`).join('');
+  function showWhy(list, fallback) {
+    if (!list || !list.length) return toast(fallback || 'Not allowed');
+    document.querySelectorAll('.whypop').forEach((x) => x.remove());
+    const d = document.createElement('div'); d.className = 'whypop'; d.innerHTML = `<div class="muted">Why not?</div>${whyHtml(list)}`;
+    d.onclick = () => d.remove(); document.body.appendChild(d); setTimeout(() => d.remove(), 9000);
+  }
+  const refuse = (err, fallback) => showWhy(err.data?.why_not, fallback || `Not allowed: ${err.message}`);
   function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); }
 
   async function showLogin() {
@@ -36,7 +45,7 @@
     $('#logout').onclick = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); showLogin(); };
     $('#chat').innerHTML = ''; $('#trace').innerHTML = '';
     say('a', `Hi! I'm the OneGate copilot for ${ME.tenant_name}. I can read your books and draft things on my own. Anything that moves money or contacts customers waits for the owner's approval.`);
-    await Promise.all([loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare()]);
+    await Promise.all([loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts()]);
   }
 
   async function loadOverview() {
@@ -81,7 +90,7 @@
     $('#arBody').onclick = async (e) => {
       const b = e.target.closest('button[data-inv]'); if (!b) return;
       try { await api(`/api/sme/${TID}/actions`, { method: 'POST', body: { type: 'send_reminder', params: { invoice_id: b.dataset.inv }, idempotency_key: `rem-${b.dataset.inv}` } }); toast('Reminder queued for owner approval'); loadApprovals(); loadAudit(); loadOverview(); }
-      catch (err) { toast(`Not allowed: ${(err.data?.reasons || [err.message]).join(', ')}`); }
+      catch (err) { refuse(err); }
     };
   }
 
@@ -94,7 +103,7 @@
       return `
       <div class="card"><div class="t">${esc(a.summary)}</div>
       <div class="muted">${esc(a.tier)} · proposed by ${esc(a.proposed_by.sme_role)} via ${esc(a.proposed_by.source)} <span class="st ${esc(a.status)}">${esc(a.status.replace(/_/g, ' '))}</span></div>
-      ${a.warnings?.length ? `<div class="w">⚠ ${esc(a.warnings.join('; ').replace(/_/g, ' '))}</div>` : ''}
+      ${a.why_warnings?.length ? whyHtml(a.why_warnings) : a.warnings?.length ? `<div class="w">⚠ ${esc(a.warnings.join('; ').replace(/_/g, ' '))}</div>` : ''}
       ${a.preview ? `<details><summary class="muted">Preview email</summary><pre class="muted" style="white-space:pre-wrap">${esc(a.preview.subject)}\n\n${esc(a.preview.body)}</pre></details>` : ''}
       ${a.receipt ? `<div class="muted">Receipt ${esc(a.receipt.reference)}${a.mandate_id ? ` · paid by autopilot under ${esc(a.mandate_id)}` : ''}</div>` : ''}
       ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner's phone · <span class="sms">sandbox SMS: ${esc(chl.sandbox_code || '')}</span></div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
@@ -114,24 +123,26 @@
       } catch (err) {
         const m = { confirm_amount_mismatch: 'Amount does not match. Re-type the exact amount.', stepup_code_wrong: 'Wrong code. Try again.', stepup_locked: 'Too many wrong codes. Request a new one.', stepup_code_expired: 'Code expired. Request a new one.' }[err.message];
         if (['stepup_locked', 'stepup_code_expired', 'stepup_code_already_used'].includes(err.message) && ap) delete challenges[ap.dataset.ap];
-        toast(m || `Blocked: ${err.message}`);
+        if (m) toast(m); else refuse(err, `Blocked: ${err.message}`);
       }
-      loadApprovals(); loadAudit(); loadOverview();
+      loadApprovals(); loadAudit(); loadOverview(); loadDiscounts();
     };
   }
 
   // ---------- Agent: autopilot brief, plan trace ----------
-  const TIER = { get_cash_forecast: 'READ', list_overdue_receivables: 'READ', list_open_bills: 'READ', simulate_plan: 'READ', match_financing: 'SUGGEST', draft_reminder: 'SUGGEST', propose_reminder: 'EXECUTE', propose_payment: 'EXECUTE', propose_loan_application: 'EXECUTE' };
+  const TIER = { get_gst_calendar: 'READ', find_early_pay_discounts: 'SUGGEST', propose_early_payment: 'EXECUTE', get_cash_forecast: 'READ', list_overdue_receivables: 'READ', list_open_bills: 'READ', simulate_plan: 'READ', match_financing: 'SUGGEST', draft_reminder: 'SUGGEST', propose_reminder: 'EXECUTE', propose_payment: 'EXECUTE', propose_loan_application: 'EXECUTE' };
   function obsLine(s) {
     const o = s.observation || {};
-    if (o.error) return `refused: ${o.error.replace(/_/g, ' ')}`;
+    if (o.error) return `refused: ${(o.why_not?.length ? o.why_not.join('; ') : o.error.replace(/_/g, ' '))}`;
+    if (s.tool === 'get_gst_calendar') { const d = (o.dues || [])[0]; return d ? `GST ${inr(d.net_cash_payable)} due ${d.due} · ${d.status}${d.itc_at_risk ? ` · ${inr(d.itc_at_risk)} credit at risk` : ''}` : 'no GST due in window'; }
+    if (s.tool === 'find_early_pay_discounts') return `${(o.offers || []).filter((x) => x.worth_it).length} worth taking · saves ${inr(o.total_savings || 0)}`;
     if (s.tool === 'get_cash_forecast') return `today ${inr(o.balance_today)} · lowest ${inr(o.lowest_point?.low)} on ${o.lowest_point?.date} · buffer ${inr(o.safety_buffer)}`;
     if (s.tool === 'list_overdue_receivables') return `${inr(o.total_overdue)} overdue · top: ${(o.invoices || []).slice(0, 3).map((i) => i.invoice_id).join(', ')}`;
     if (s.tool === 'match_financing') { const r = (o.options || []).find((x) => x.product_id === o.recommendation?.product_id); return r ? `best: ${r.lender} · ${r.apr_pct}% APR · total cost ${inr(r.est_total_cost)}` : 'no eligible product'; }
     if (s.tool === 'simulate_plan') return `low point ${inr(o.lowest_before?.low)} → ${inr(o.lowest_after?.low)}${o.first_breach_after_plan ? ` · still touches buffer ${o.first_breach_after_plan}` : ' · stays above buffer'}`;
     if (o.status === 'pending_approval') return `queued for owner: ${o.summary}${o.duplicate ? ' (already queued)' : ''}`;
     if (o.status && o.status !== 'pending_approval' && o.action_id) return `already ${o.status.replace(/_/g, ' ')}: ${o.summary}`;
-    if (o.status === 'denied_by_policy') return `denied by policy: ${(o.reasons || []).join(', ')}`;
+    if (o.status === 'denied_by_policy') return `denied: ${(o.why_not?.length ? o.why_not : o.reasons || []).join('; ')}`;
     return JSON.stringify(o).slice(0, 120);
   }
   function renderTrace(steps, planner) {
@@ -145,8 +156,9 @@
     $('#pauseAuto').hidden = ME.sme_role !== 'owner';
     $('#runAuto').hidden = $('#runPlan').hidden = ME.sme_role === 'viewer';
     $('#briefMeta').textContent = s.paused ? 'paused by owner' : `runs every ${s.interval_min >= 1440 ? 'day' : `${s.interval_min} min`}${r ? ` · last run ${new Date(r.finished).toLocaleTimeString()}` : ''}`;
-    $('#brief').innerHTML = r ? `<div class="h">${esc(r.headline)}</div><ul>${r.events.map((e) => `<li><span class="ev ${e.kind}">${{ paid: 'Paid', escalated: 'Needs you', plan: 'Plan', reminder: 'Reminder', forecast: 'Forecast' }[e.kind] || 'Note'}</span> ${esc(e.text)}</li>`).join('')}</ul><div class="muted">${r.pending_approvals} action(s) waiting for the owner.</div>`
+    $('#brief').innerHTML = r ? `<div class="h">${esc(r.headline)}</div><ul>${r.events.map((e, i) => `<li><span class="ev ${e.kind}">${{ paid: 'Paid', escalated: 'Needs you', plan: 'Plan', reminder: 'Reminder', forecast: 'Forecast', gst: 'GST', discount: 'Discount', skipped: 'Held back' }[e.kind] || 'Note'}</span> ${esc(e.text)}${e.why_not?.length ? ` <button class="linkish" data-why="${i}">Why?</button>` : ''}</li>`).join('')}</ul><div class="muted">${r.pending_approvals} action(s) waiting for the owner.</div>`
       : '<div class="muted">No autopilot run yet. Run it now, or ask it to plan your cash gap.</div>';
+    $('#brief').onclick = (e) => { const b = e.target.closest('[data-why]'); if (b) showWhy(r.events[Number(b.dataset.why)].why_not); };
   }
   $('#runPlan').onclick = async () => {
     try { const p = await api(`/api/sme/${TID}/agent/plan`, { method: 'POST', body: {} }); renderTrace(p.steps, p.planner); say('a', p.reply); } catch (err) { toast(err.message); }
@@ -154,7 +166,7 @@
   };
   $('#runAuto').onclick = async () => {
     try { const r = await api(`/api/sme/${TID}/autopilot/run`, { method: 'POST' }); if (r.skipped) toast('Autopilot is paused'); } catch (err) { toast(err.message); }
-    loadBrief(); loadApprovals(); loadAudit(); loadOverview(); loadMandates();
+    loadBrief(); loadApprovals(); loadAudit(); loadOverview(); loadMandates(); loadDiscounts();
   };
   $('#pauseAuto').onclick = async () => {
     const s = await api(`/api/sme/${TID}/autopilot`);
@@ -183,11 +195,28 @@
       $('#mdOtp').innerHTML = `<div class="otp"><div class="muted">Signing a mandate needs a code · <span class="sms">sandbox SMS: ${esc(mdChallenge.sandbox_code || '')}</span></div><div class="row"><input id="mdCode" placeholder="6-digit code" maxlength="6"><button id="mdSign">Confirm mandate</button></div></div>`;
       $('#mdSign').onclick = async () => {
         try { await api(`/api/sme/${TID}/mandates`, { method: 'POST', body: { ...mdParams, otp: { challenge_id: mdChallenge.challenge_id, code: $('#mdCode').value.trim() } } }); toast('Mandate signed'); $('#mdOtp').innerHTML = ''; }
-        catch (err) { toast(`Not signed: ${(err.data?.reasons || [err.message]).join(', ')}`); }
+        catch (err) { refuse(err, `Not signed: ${err.message}`); }
         loadMandates(); loadAudit();
       };
-    } catch (err) { toast(`Not allowed: ${(err.data?.reasons || [err.message]).join(', ').replace(/_/g, ' ')}`); }
+    } catch (err) { refuse(err); }
   };
+
+  // ---------- Dynamic discounting + GST ----------
+  async function loadDiscounts() {
+    const [g, d] = await Promise.all([api(`/api/sme/${TID}/gst`), api(`/api/sme/${TID}/discounts`)]);
+    const n = g.next;
+    $('#gst').innerHTML = n ? `<div>Next GST (GSTR-3B ${esc(n.period)})<b>${inr(n.net_cash_payable)}</b>due ${esc(n.due)}</div><div>Input tax credit<b>${g.itc_allowed ? inr(n.itc_claimed) : 'not allowed'}</b>${g.itc_allowed ? `output tax ${inr(n.output_tax)}` : `${g.output_rate_pct}% without ITC`}</div><div>Credit at risk<b>${inr(n.itc_at_risk)}</b>${n.itc_at_risk ? esc(n.itc_at_risk_from.join(', ')) + ' not filed GSTR-1' : 'all suppliers filed'}</div><div>Cash on due date<b class="${esc(n.status)}">${esc(n.status)}</b>low ${inr(n.cash_low_after_payment)} after paying</div><div class="adv">${esc(g.advice.join(' '))}</div>` : '<div class="adv">No GST payment in the forecast window.</div>';
+    const canAct = ME.sme_role !== 'viewer';
+    $('#discBody').innerHTML = d.offers.length ? d.offers.map((o, i) => `<tr><td>${esc(o.supplier)}</td><td>${o.eligible_terms ? `${o.discount_pct}% off if paid by ${esc(o.pay_by)} <span class="muted">· due ${esc(o.due)} · ${o.days_early} days early</span>` : '<span class="muted">none</span>'}</td><td class="r">${o.pay_amount ? inr(o.pay_amount) : ''}</td><td class="r">${o.discount_inr ? inr(o.discount_inr) : ''}</td><td class="r">${o.annualised_return_pct ?? ''}%<div class="muted">vs ${o.hurdle_pct}%</div></td><td>${o.worth_it ? (canAct ? `<button data-pe="${esc(o.bill_id)}">Pay early</button>` : '<span class="ok">worth it</span>') : `<span class="no">held back</span> <button class="linkish" data-dw="${i}">Why not?</button>`}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="muted">No open bills with early-payment terms.</td></tr>';
+    $('#discWhy').innerHTML = '';
+    $('#discBody').onclick = async (e) => {
+      const w = e.target.closest('[data-dw]'); if (w) { $('#discWhy').innerHTML = whyHtml(d.offers[Number(w.dataset.dw)].why_not); return; }
+      const b = e.target.closest('[data-pe]'); if (!b) return;
+      try { const r = await api(`/api/sme/${TID}/discounts/${b.dataset.pe}/propose`, { method: 'POST' }); toast(r.duplicate ? 'Already waiting for approval' : 'Early payment queued for owner approval'); } catch (err) { refuse(err); }
+      loadApprovals(); loadAudit(); loadOverview();
+    };
+  }
 
   async function loadShare() {
     if (ME.sme_role === 'viewer') { $('#share').innerHTML = '<div class="muted">Viewers can’t see lender data.</div>'; return; }
@@ -223,14 +252,22 @@
     try {
       const r = await api(`/api/sme/${TID}/copilot`, { method: 'POST', body: { message: q } });
       say('a', r.reply || '…', { sec: r.blocked || r.intent === 'phishing_warning', note: r.security_notice || (r.fallback_reason ? `LLM answer rejected (${r.fallback_reason.replace(/_/g, ' ')}); deterministic answer shown.` : '') });
+      if (r.why_not?.length) { const w = document.createElement('div'); w.innerHTML = whyHtml(r.why_not); $('#chat').appendChild(w); $('#chat').scrollTop = 1e9; }
       if (r.steps?.length) { renderTrace(r.steps, r.planner); $('#briefPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       for (const c of r.cards || []) if (c.type === 'suggestion' && ME.sme_role !== 'viewer') {
         const b = document.createElement('button'); b.className = 'ghost'; b.textContent = c.label; b.style.alignSelf = 'flex-start';
-        b.onclick = async () => { try { await api(`/api/sme/${TID}/actions`, { method: 'POST', body: c.propose }); toast('Queued for owner approval'); loadApprovals(); } catch (err) { toast(err.message); } b.remove(); };
+        b.onclick = async () => {
+          try {
+            if (c.propose_discount) await api(`/api/sme/${TID}/discounts/${c.propose_discount}/propose`, { method: 'POST' });
+            else await api(`/api/sme/${TID}/actions`, { method: 'POST', body: c.propose });
+            toast('Queued for owner approval'); loadApprovals();
+          } catch (err) { refuse(err); }
+          b.remove();
+        };
         $('#chat').appendChild(b);
       }
     } catch (err) { say('a', `Sorry, that failed (${err.message}).`); }
-    loadApprovals(); loadAudit(); loadOverview(); loadBrief();
+    loadApprovals(); loadAudit(); loadOverview(); loadBrief(); loadDiscounts();
   }
   $('#ask').onsubmit = (e) => { e.preventDefault(); const q = $('#q').value; $('#q').value = ''; ask(q); };
   document.querySelector('.chips').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) ask(b.dataset.q); };

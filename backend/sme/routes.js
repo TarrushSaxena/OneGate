@@ -17,6 +17,12 @@ const autopilot = require('./autopilot');
 const mandates = require('./mandates');
 const stepup = require('./stepup');
 const { lenderShare } = require('./privacy');
+const discounting = require('./discounting');
+const gst = require('./gst');
+const { explain } = require('./explain');
+
+// Every refusal carries a "why not" card: the rule, the limit and the fix.
+const withWhy = (body) => ({ ...body, why_not: body.why_not || explain(body.reasons || [body.error]) });
 
 const router = express.Router();
 
@@ -42,7 +48,7 @@ router.param('tid', (req, res, next, tid) => {
 function gate(action) {
   return (req, res, next) => {
     const v = policy.evaluate(action, { sme_role: req.sme.sme_role });
-    if (v.decision === 'deny') return res.status(403).json({ error: 'policy_denied', reasons: v.reasons });
+    if (v.decision === 'deny') return res.status(403).json(withWhy({ error: 'policy_denied', reasons: v.reasons }));
     next();
   };
 }
@@ -99,7 +105,7 @@ router.get('/:tid/autopilot', gate('view_overview'), (req, res) => res.json(auto
 router.post('/:tid/autopilot/run', gate('run_autopilot'), (req, res) => res.json(autopilot.runFor(req.sme.tenant_id, { trigger: 'manual', by: req.smeActor })));
 router.post('/:tid/autopilot/pause', (req, res) => {
   const r = autopilot.setPaused(req.sme.tenant_id, req.smeActor, req.body?.paused !== false);
-  if (r.error) return res.status(r.status).json(r);
+  if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });
 
@@ -107,20 +113,37 @@ router.post('/:tid/autopilot/pause', (req, res) => {
 router.get('/:tid/mandates', gate('view_overview'), (req, res) => res.json({ mandates: mandates.list(req.sme.tenant_id), hard_limits: mandates.HARD }));
 router.post('/:tid/mandates/challenge', (req, res) => {
   const r = mandates.requestCreate({ tenantId: req.sme.tenant_id, actor: req.smeActor, params: req.body || {} });
-  if (r.error) return res.status(r.status).json(r);
+  if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });
 router.post('/:tid/mandates', (req, res) => {
   const { otp, ...params } = req.body || {};
   const r = mandates.create({ tenantId: req.sme.tenant_id, actor: req.smeActor, params, otp });
-  if (r.error) return res.status(r.status).json(r);
+  if (r.error) return res.status(r.status).json(withWhy(r));
   res.status(201).json(r);
 });
 router.post('/:tid/mandates/:id/revoke', (req, res) => {
   const r = mandates.revoke({ tenantId: req.sme.tenant_id, actor: req.smeActor, mandateId: req.params.id });
-  if (r.error) return res.status(r.status).json(r);
+  if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });
+
+// GST calendar: GSTR-3B dues, input credit at risk, coverage, cost of paying late.
+router.get('/:tid/gst', gate('view_gst'), (req, res) => {
+  audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'view.gst', tier: 'READ', decision: 'allow' });
+  res.json(gst.calendar(req.tenant));
+});
+
+// Dynamic discounting: early-pay offers scored against the cost of money and the cash buffer.
+router.get('/:tid/discounts', gate('view_discounts'), (req, res) => res.json(discounting.scan(req.tenant)));
+router.post('/:tid/discounts/:billId/propose', gate('draft_reminder'), (req, res) => {
+  const r = discounting.proposeEarlyPayment({ tenantId: req.sme.tenant_id, actor: req.smeActor, billId: req.params.billId, source: 'user' });
+  if (r.error) return res.status(r.status).json(withWhy(r));
+  res.status(r.duplicate ? 200 : 201).json(r);
+});
+
+// Plain-language explanation for any reason code (used by the dashboard's "Why not?" cards).
+router.get('/:tid/explain', (req, res) => res.json({ why_not: explain(String(req.query.codes || '').split(',').filter(Boolean).slice(0, 10)) }));
 
 // What a lender would see: banded features + ledger commitment, never the books.
 router.get('/:tid/privacy/lender-share', gate('recommend_financing'), (req, res) => res.json(lenderShare(req.tenant)));
@@ -130,7 +153,7 @@ router.get('/:tid/actions', (req, res) => res.json({ actions: actions.list(req.s
 router.post('/:tid/actions', (req, res) => {
   const { type, params, idempotency_key } = req.body || {};
   const r = actions.propose({ tenantId: req.sme.tenant_id, actor: req.smeActor, type, params, idempotencyKey: idempotency_key || req.get('Idempotency-Key') });
-  if (r.denied) return res.status(403).json({ error: 'policy_denied', reasons: r.verdict.reasons });
+  if (r.denied) return res.status(403).json(withWhy({ error: 'policy_denied', reasons: r.verdict.reasons, why_not: r.why_not }));
   res.status(r.duplicate ? 200 : 201).json(r);
 });
 
@@ -138,20 +161,20 @@ router.post('/:tid/actions', (req, res) => {
 router.post('/:tid/actions/:id/stepup', (req, res) => {
   const a = actions.get(req.sme.tenant_id, req.params.id);
   if (!a) return res.status(404).json({ error: 'not_found' });
-  if (!policy.canApprove(req.sme.sme_role)) return res.status(403).json({ error: 'only_owner_can_approve' });
+  if (!policy.canApprove(req.sme.sme_role)) return res.status(403).json(withWhy({ error: 'only_owner_can_approve' }));
   if (a.status !== 'pending_approval') return res.status(409).json({ error: `already_${a.status}` });
   res.json(stepup.issue({ tenantId: req.sme.tenant_id, actor: req.smeActor, purpose: `approve.${a.type}`, ref: a.id, amount: a.params.amount ?? null }));
 });
 
 router.post('/:tid/actions/:id/approve', (req, res) => {
   const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: true, confirmAmount: req.body?.confirm_amount, otp: req.body?.otp });
-  if (r.error) return res.status(r.status).json(r);
+  if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });
 
 router.post('/:tid/actions/:id/reject', (req, res) => {
   const r = actions.decide({ tenantId: req.sme.tenant_id, actor: req.smeActor, actionId: req.params.id, approve: false, reason: req.body?.reason });
-  if (r.error) return res.status(r.status).json(r);
+  if (r.error) return res.status(r.status).json(withWhy(r));
   res.json(r);
 });
 

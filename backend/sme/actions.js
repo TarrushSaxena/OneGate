@@ -10,6 +10,7 @@ const { getTenant, iso, round2, DAY } = require('./data/sandbox');
 const { forecast } = require('./forecast');
 const { draftReminder } = require('./receivables');
 const stepup = require('./stepup');
+const { explain } = require('./explain');
 
 const pending = new Map();   // id -> action
 const byIdem = new Map();    // tenant:key -> id
@@ -36,7 +37,9 @@ function forecastAfterPayment(tenant, amount, billId) {
 function summarize(type, params, tenant) {
   if (type === 'schedule_payment') {
     const ben = tenant.beneficiaries.find((b) => b.id === params.beneficiary_id);
-    return `Pay ${tenant.profile.currency} ${Number(params.amount).toLocaleString('en-IN')} to ${ben ? `${ben.name} (${ben.account_masked})` : 'unknown'} on ${params.date || 'next business day'}`;
+    const base = `Pay ${tenant.profile.currency} ${Number(params.amount).toLocaleString('en-IN')} to ${ben ? `${ben.name} (${ben.account_masked})` : 'unknown'} on ${params.date || 'next business day'}`;
+    if (params.early_pay) return `${base} (early: saves ${tenant.profile.currency} ${Number(params.early_pay.discount_inr).toLocaleString('en-IN')}, ${params.early_pay.discount_pct}% discount, ${params.early_pay.annualised_return_pct}% a year)`;
+    return base;
   }
   if (type === 'send_reminder') return `Email payment reminder for ${params.invoice_id}`;
   if (type === 'submit_loan_application') return `Submit sandbox loan application: ${params.product_id} for ${tenant.profile.currency} ${Number(params.amount || 0).toLocaleString('en-IN')}`;
@@ -50,13 +53,18 @@ function propose({ tenantId, actor, type, params = {}, idempotencyKey, source = 
   }
   const ctx = { sme_role: actor.sme_role, params, tenant, paidToday: paidToday(tenantId) };
   if (type === 'schedule_payment' && Number(params.amount) > 0) ctx.forecastAfter = forecastAfterPayment(tenant, Number(params.amount), params.bill_id);
-  const verdict = policy.evaluate(type, ctx);
+  let verdict = policy.evaluate(type, ctx);
+  // An early payment must be exactly the bill minus the supplier's offered discount.
+  if (verdict.decision !== 'deny' && type === 'schedule_payment' && params.early_pay && !require('./discounting').validEarlyPay(tenant, params)) {
+    verdict = { decision: 'deny', tier: verdict.tier, reasons: ['discount_terms_mismatch'] };
+  }
   const entry = audit.append(tenantId, { actor, action: `propose.${type}`, tier: verdict.tier, decision: verdict.decision, target: params.invoice_id || params.beneficiary_id || params.product_id || null, metadata: { source, reasons: verdict.reasons, warnings: verdict.warnings || [], amount: params.amount || null } });
-  if (verdict.decision === 'deny') return { denied: true, verdict, audit_seq: entry.seq };
+  if (verdict.decision === 'deny') return { denied: true, verdict, why_not: explain(verdict.reasons, { amount: Number(params.amount) || null }), audit_seq: entry.seq };
 
   const action = {
     id: newId(), tenant_id: tenantId, type, params, tier: verdict.tier, status: 'pending_approval',
     summary: summarize(type, params, tenant), warnings: verdict.warnings || [],
+    why_warnings: explain(verdict.warnings || [], { amount: Number(params.amount) || null }),
     proposed_by: { id: actor.id, sme_role: actor.sme_role, source },
     created_at: new Date().toISOString(), expires_at: new Date(Date.now() + policy.LIMITS.approval_ttl_ms).toISOString(),
     preview: type === 'send_reminder' ? draftReminder(tenant, params.invoice_id) : undefined,
@@ -98,11 +106,12 @@ function decide({ tenantId, actor, actionId, approve, confirmAmount, reason, otp
   }
   // Re-check policy at execution time (limits may have changed since proposal).
   const tenant = getTenant(tenantId);
-  const recheck = policy.evaluate(a.type, { sme_role: actor.sme_role, params: a.params, tenant, paidToday: paidToday(tenantId) });
+  let recheck = policy.evaluate(a.type, { sme_role: actor.sme_role, params: a.params, tenant, paidToday: paidToday(tenantId) });
+  if (recheck.decision !== 'deny' && a.type === 'schedule_payment' && a.params.early_pay && !require('./discounting').validEarlyPay(tenant, a.params)) recheck = { decision: 'deny', reasons: ['discount_terms_mismatch'] };
   if (recheck.decision === 'deny') {
     a.status = 'blocked';
     audit.append(tenantId, { actor, action: `execute_blocked.${a.type}`, tier: a.tier, decision: 'deny', target: a.id, metadata: { reasons: recheck.reasons } });
-    return { error: 'blocked_by_policy', reasons: recheck.reasons, status: 403 };
+    return { error: 'blocked_by_policy', reasons: recheck.reasons, why_not: explain(recheck.reasons), status: 403 };
   }
   a.status = 'executed'; a.decided_by = actor.id; a.decided_at = new Date().toISOString();
   const receipt = execute(a, tenant);
@@ -117,7 +126,11 @@ function execute(a, tenant) {
   const ref = 'SBX-' + crypto.randomBytes(4).toString('hex').toUpperCase();
   if (a.type === 'schedule_payment') {
     const bill = tenant.payables.find((b) => b.id === a.params.bill_id);
-    if (bill) bill.status = 'scheduled';
+    if (bill) {
+      bill.status = 'scheduled';
+      if (a.params.date) bill.scheduled_for = a.params.date;
+      if (a.params.early_pay) { bill.original_amount = bill.amount; bill.amount = round2(Number(a.params.amount)); bill.discount_captured = a.params.early_pay.discount_inr; }
+    }
     return { reference: ref, rail: 'sandbox-NEFT', scheduled_for: a.params.date || iso(Date.parse(tenant.profile.as_of) + DAY), amount: round2(Number(a.params.amount)) };
   }
   if (a.type === 'send_reminder') return { reference: ref, channel: 'sandbox-email', delivered: true, to: a.preview?.customer };

@@ -50,3 +50,16 @@ select{background:#0e1630;color:var(--text);border:1px solid var(--line);border-
 @media(max-width:1000px){.trace li{grid-template-columns:24px 1fr 64px}.trace li .o{grid-column:1/-1}}
 .brief-body ul{list-style:none;margin-left:0}.ev{display:inline-block;min-width:74px;text-align:center;font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:99px;margin-right:6px;background:rgba(141,155,196,.15);color:var(--muted)}
 .ev.paid{background:rgba(46,204,143,.15);color:var(--good)}.ev.escalated{background:rgba(245,176,65,.18);color:var(--warn)}.ev.plan{background:rgba(91,140,255,.2);color:var(--acc)}
+
+.ev.gst{background:rgba(91,140,255,.12);color:#9db8ff}.ev.discount{background:rgba(46,204,143,.15);color:var(--good)}.ev.skipped{background:rgba(141,155,196,.15);color:var(--muted)}
+.why{border:1px solid rgba(245,176,65,.45);background:rgba(245,176,65,.07);border-radius:10px;padding:9px 11px;margin-top:8px;font-size:12.5px}
+.why b{display:block;font-size:13px;margin-bottom:2px}.why .rule{float:right;font-size:10.5px;color:var(--warn);border:1px solid rgba(245,176,65,.45);border-radius:99px;padding:1px 7px;margin-left:8px}
+.why .fix{color:var(--good);margin-top:4px}.why .fix:before{content:"What you can do: ";color:var(--muted)}
+.whypop{background:#0b1020;border:1px solid var(--line);border-radius:12px;padding:8px 10px;position:fixed;bottom:20px;right:20px;max-width:380px;z-index:9;animation:pop .25s ease both}.whypop .why{background:#1a1a2b;margin-top:6px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.linkish{background:none;border:0;color:var(--warn);padding:0;font-size:12px;text-decoration:underline;cursor:pointer}
+.gstbox{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}.gstbox div{background:#0e1630;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12px;color:var(--muted)}.gstbox b{display:block;font-size:14px;color:var(--text)}
+.gstbox .adv{grid-column:1/-1;color:var(--text);font-size:12.5px}.gstbox .covered{color:var(--good)}.gstbox .tight{color:var(--warn)}.gstbox .short{color:var(--bad)}
+@media(max-width:1000px){.gstbox{grid-template-columns:repeat(2,1fr)}}
+.full{grid-column:1/-1}
+.grid>*{min-width:0}.tblwrap{overflow-x:auto}
+.grid>.panel{overflow-x:auto}

@@ -12,6 +12,9 @@ const { detectInjection, detectPhishing, redactPII } = require('./guard');
 const actions = require('./actions');
 const audit = require('./auditChain');
 const agent = require('./agent');
+const discounting = require('./discounting');
+const gst = require('./gst');
+const { explain } = require('./explain');
 
 const fmt = (n) => `${n < 0 ? '-' : ''}₹${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
 
@@ -29,6 +32,9 @@ function parseAmount(text) {
 
 function intentOf(text) {
   const t = text.toLowerCase();
+  if (/\b(gst|gstr|itc|input tax credit|input credit|tax due|tax payment)\b/.test(t)) return 'gst';
+  if (/\b(early[- ]pay\w*|pay early|discounts?|dynamic discounting)\b/.test(t)) return 'discount';
+  if (/\bwhy (not|can'?t|didn'?t|was|did)\b|\bwhy (is|was) .*(blocked|denied|refused)/.test(t)) return 'why';
   if (/\b(plan|gap|shortfall|short on cash|cash crunch|cover (the|my)|survive|what should i do|get me through|fix my cash)\b/.test(t) && !/\b(loan|financ\w*|borrow|credit line|overdraft|working capital)\b/.test(t)) return 'plan';
   if (/\b(remind|reminder)\b|\b(send|draft|write)\b.*\bfollow[- ]?up\b/.test(t)) return 'remind';
   if (/\b(pay|payment|schedule)\b.*\b(bill|supplier|vendor)\b|\bpay\b.*\b(yarn|logistics|landlord)\b/.test(t)) return 'pay';
@@ -65,6 +71,40 @@ function handle({ tenantId, actor, message }) {
   if (intent === 'plan') {
     const p = agent.planCashGap({ tenantId, actor, horizonDays: 45 });
     return { intent: 'plan', planner: p.planner, reply: p.reply, steps: p.steps, cards: p.cards, tools: p.steps.map((s) => s.tool), data: { plan: p.result, gap: p.gap, breach_date: p.breach_date } };
+  }
+  if (intent === 'gst') {
+    const c = gst.calendar(tenant); out.tools.push('gst_calendar');
+    const n = c.next;
+    out.reply = n
+      ? `Next GST payment: ${fmt(n.net_cash_payable)} (GSTR-3B for ${n.period}) due ${n.due}. ` + c.advice.join(' ')
+      : 'No GST payment falls in the forecast window.';
+    out.data = { gst: c };
+    return out;
+  }
+  if (intent === 'discount') {
+    const s = discounting.scan(tenant); out.tools.push('find_early_pay_discounts');
+    const take = s.offers.filter((o) => o.worth_it); const skip = s.offers.filter((o) => !o.worth_it && o.eligible_terms);
+    const parts = [];
+    if (take.length) parts.push(`Worth taking: ${take.map((o) => `${o.supplier} ${o.discount_pct}% off if paid by ${o.pay_by} (pay ${fmt(o.pay_amount)}, save ${fmt(o.discount_inr)}, ${o.annualised_return_pct}% a year)`).join('; ')}. Total saving ${fmt(s.total_savings)}.`);
+    if (skip.length) parts.push(`Not worth it: ${skip.map((o) => `${o.supplier} (${o.why_not[0]?.title.toLowerCase()})`).join('; ')}.`);
+    out.reply = parts.join(' ') || 'No supplier has offered an early-payment discount on your open bills.';
+    if (take.length) out.reply += ' Each early payment needs your approval.';
+    out.data = { discounts: s };
+    out.why_not = skip.flatMap((o) => o.why_not);
+    for (const o of take) if (actor.sme_role !== 'viewer') out.cards.push({ type: 'suggestion', label: `Pay ${o.supplier} early (saves ${fmt(o.discount_inr)})`, propose_discount: o.bill_id });
+    return out;
+  }
+  if (intent === 'why') {
+    // Explain the most recent refusal or escalation in this tenant's audit chain.
+    const last = audit.list(tenantId).slice().reverse().find((e) => /deny|escalate|rejected/.test(e.decision || '') && (e.metadata?.reasons || e.metadata?.reason || e.metadata?.error || e.metadata?.category) && !/^copilot\.why/.test(e.action));
+    if (!last) { out.reply = 'Nothing has been refused or held back recently.'; return out; }
+    const codes = last.action === 'copilot.phishing_warning' ? ['phishing'] : (last.metadata.reasons || [last.metadata.reason || last.metadata.error || last.metadata.category]);
+    const why = explain(codes, { amount: last.metadata.amount || null });
+    const what = { 'copilot.blocked': 'a chat message', 'copilot.phishing_warning': 'a payment request in chat', 'discount.declined': 'an early payment', 'mandate.escalated': 'an autopilot payment', 'stepup.failed': 'an approval code', 'cross_tenant_access_denied': 'access to another business' }[last.action]
+      || (last.action.startsWith('propose.') ? `a proposed ${last.action.slice(8).replace(/_/g, ' ')}` : last.action.startsWith('approve_') || last.action.startsWith('execute_blocked') ? `an approval (${last.action.split('.').pop().replace(/_/g, ' ')})` : last.action.replace(/[._]/g, ' '));
+    out.reply = `The last thing I held back was ${what}. ` + why.map((w) => `${w.title}: ${w.detail} ${w.fix}`).join(' ');
+    out.why_not = why;
+    return out;
   }
   if (intent === 'forecast' || intent === 'overview') {
     const f = forecast(tenant); out.tools.push('forecast');
@@ -109,9 +149,9 @@ function handle({ tenantId, actor, message }) {
     const ben = bill && tenant.beneficiaries.find((b) => b.name === bill.supplier);
     if (!bill || !ben) { out.reply = 'I can only pay bills to verified beneficiaries already on file.'; return out; }
     const p = actions.propose({ tenantId, actor, type: 'schedule_payment', params: { amount: bill.amount, beneficiary_id: ben.id, bill_id: bill.id, date: bill.due }, source: 'copilot' });
-    if (p.denied) out.reply = `I can’t schedule that payment: ${p.verdict.reasons.join(', ')}.`;
+    if (p.denied) { out.reply = `I can’t schedule that payment: ${p.why_not.map((w) => w.title.toLowerCase()).join('; ')}.`; out.why_not = p.why_not; }
     else {
-      out.reply = `Payment of ${fmt(bill.amount)} to ${ben.name} (${ben.account_masked}) for ${bill.due} is ready for owner approval.` + (p.action.warnings.length ? ` Heads up: ${p.action.warnings.join('; ').replace(/_/g, ' ')}.` : '');
+      out.reply = `Payment of ${fmt(bill.amount)} to ${ben.name} (${ben.account_masked}) for ${bill.due} is ready for owner approval.` + (p.action.warnings.length ? ` Heads up: ${p.action.why_warnings.map((w) => w.detail).join(' ')}` : '');
       out.cards.push({ type: 'approval', action: p.action });
     }
   }

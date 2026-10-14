@@ -13,6 +13,8 @@ const ACTIONS = {
   view_forecast: TIERS.READ,
   view_receivables: TIERS.READ,
   view_financing: TIERS.READ,
+  view_gst: TIERS.READ,
+  view_discounts: TIERS.READ,
   draft_reminder: TIERS.SUGGEST,
   recommend_financing: TIERS.SUGGEST,
   send_reminder: TIERS.EXECUTE,
