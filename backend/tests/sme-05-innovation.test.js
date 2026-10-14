@@ -276,7 +276,7 @@ test('API refusals carry why_not: unknown payee, DENY action, wrong code', async
   const p = await fetchApi(`/api/sme/${A}/actions`, { method: 'POST', token: T.owner, body: { type: 'submit_loan_application', params: { product_id: 'lp_invoice_discount', amount: 400000 } } });
   const chl = (await fetchApi(`/api/sme/${A}/actions/${p.data.action.id}/stepup`, { method: 'POST', token: T.owner })).data;
   const wrongCode = chl.sandbox_code === '000000' ? '111111' : '000000';
-  const w = await fetchApi(`/api/sme/${A}/actions/${p.data.action.id}/approve`, { method: 'POST', token: T.owner, body: { otp: { challenge_id: chl.challenge_id, code: wrongCode } } });
+  const w = await fetchApi(`/api/sme/${A}/actions/${p.data.action.id}/approve`, { method: 'POST', token: T.owner, body: { kfs_ack: p.data.action.kfs.hash, otp: { challenge_id: chl.challenge_id, code: wrongCode } } });
   assert.strictEqual(w.status, 401);
   assert.strictEqual(w.data.why_not[0].title, 'Wrong code');
   const ex = await fetchApi(`/api/sme/${A}/explain?codes=owner_only,exceeds_daily_cap_800000`, { token: T.owner });

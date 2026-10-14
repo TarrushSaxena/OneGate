@@ -68,6 +68,7 @@ function propose({ tenantId, actor, type, params = {}, idempotencyKey, source = 
     proposed_by: { id: actor.id, sme_role: actor.sme_role, source },
     created_at: new Date().toISOString(), expires_at: new Date(Date.now() + policy.LIMITS.approval_ttl_ms).toISOString(),
     preview: type === 'send_reminder' ? draftReminder(tenant, params.invoice_id) : undefined,
+    kfs: type === 'submit_loan_application' ? (() => { const lp = require('./data/sandbox').LOAN_PRODUCTS.find((x) => x.id === params.product_id); return lp ? require('./india').keyFactsStatement(lp, Number(params.amount) || 0) : undefined; })() : undefined,
     needs_step_up: stepUpEnabled() && policy.needsStepUp(type),
   };
   pending.set(action.id, action);
@@ -81,7 +82,7 @@ function list(tenantId) {
 
 function stepUpEnabled() { return process.env.SME_STEPUP !== 'off'; }
 
-function decide({ tenantId, actor, actionId, approve, confirmAmount, reason, otp }) {
+function decide({ tenantId, actor, actionId, approve, confirmAmount, reason, otp, kfsAck }) {
   const a = pending.get(actionId);
   if (!a || a.tenant_id !== tenantId) return { error: 'not_found', status: 404 };
   if (a.status !== 'pending_approval') return { error: `already_${a.status}`, status: 409 };
@@ -98,6 +99,11 @@ function decide({ tenantId, actor, actionId, approve, confirmAmount, reason, otp
   if (a.type === 'schedule_payment' && Number(confirmAmount) !== Number(a.params.amount)) {
     audit.append(tenantId, { actor, action: `approve_mismatch.${a.type}`, tier: a.tier, decision: 'deny', target: a.id, metadata: { reason: 'confirm_amount_mismatch' } });
     return { error: 'confirm_amount_mismatch', status: 400 };
+  }
+  // A loan needs the owner to have seen this exact Key Facts Statement (checked before the code is used).
+  if (a.type === 'submit_loan_application' && a.kfs && kfsAck !== a.kfs.hash) {
+    audit.append(tenantId, { actor, action: `approve_denied.${a.type}`, tier: a.tier, decision: 'deny', target: a.id, metadata: { reason: 'kfs_not_acknowledged' } });
+    return { error: 'kfs_not_acknowledged', status: 400 };
   }
   // Step-up: a one-time code bound to this exact action and amount.
   if (stepUpEnabled() && policy.needsStepUp(a.type)) {
@@ -142,6 +148,8 @@ function execute(a, tenant) {
       // Account-Aggregator-style consent artefact: purpose-bound, time-boxed, revocable.
       consent: { id: 'CNS-' + crypto.randomBytes(4).toString('hex').toUpperCase(), purpose: 'loan_underwriting', lender_product: a.params.product_id, data_scope: share.fields_shared, raw_ledger_shared: false, valid_days: 30, revocable: true },
       shared_with_lender: share,
+      kfs_hash: a.kfs ? a.kfs.hash : null,
+      cooling_off_until: a.kfs ? iso(Date.parse(tenant.profile.as_of) + a.kfs.cooling_off_days * DAY) : null,
     };
   }
   return { reference: ref };
@@ -177,4 +185,23 @@ function get(tenantId, id) { const a = pending.get(id); return a && a.tenant_id 
 
 function resetForTests() { pending.clear(); byIdem.clear(); executed.length = 0; stepup.resetForTests(); }
 
-module.exports = { propose, list, get, decide, executeUnderMandate, paidToday, forecastAfterPayment, stepUpEnabled, resetForTests, _executed: executed };
+/** Exit a loan inside its cooling-off period: no penalty, only interest for the days used (sandbox). */
+function exitCoolingOff({ tenantId, actor, actionId }) {
+  const a = pending.get(actionId);
+  if (!a || a.tenant_id !== tenantId) return { error: 'not_found', status: 404 };
+  if (!policy.canApprove(actor.sme_role)) return { error: 'only_owner_can_approve', status: 403 };
+  if (a.type !== 'submit_loan_application' || a.status !== 'executed' || !a.receipt || !a.receipt.cooling_off_until) return { error: 'not_an_active_loan', status: 409 };
+  const tenant = getTenant(tenantId);
+  if (tenant.profile.as_of > a.receipt.cooling_off_until) {
+    audit.append(tenantId, { actor, action: 'loan.cooling_off_exit', tier: 'EXECUTE', decision: 'deny', target: a.id, metadata: { reason: 'cooling_off_expired' } });
+    return { error: 'cooling_off_expired', status: 409 };
+  }
+  const daysUsed = Math.max(0, Math.round((Date.parse(tenant.profile.as_of) - Date.parse(a.decided_at.slice(0, 10))) / DAY));
+  const interest = round2((Number(a.params.amount) * (a.kfs ? a.kfs.interest_rate_pct : 0) / 100) * (daysUsed / 365));
+  a.status = 'exited_in_cooling_off';
+  a.cooling_off_exit = { at: new Date().toISOString(), days_used: daysUsed, repay_principal: Number(a.params.amount), interest_for_days_used: interest, penalty: 0 };
+  audit.append(tenantId, { actor, action: 'loan.cooling_off_exit', tier: 'EXECUTE', decision: 'allow', target: a.id, metadata: { amount: Number(a.params.amount), interest } });
+  return { action: a };
+}
+
+module.exports = { exitCoolingOff, propose, list, get, decide, executeUnderMandate, paidToday, forecastAfterPayment, stepUpEnabled, resetForTests, _executed: executed };
