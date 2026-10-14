@@ -116,7 +116,7 @@ function forecast(tenant, opts = {}) {
     invBase += future; invLow += future * 0.8; invHigh += future * 1.1;
     drivers.receivables += invBase;
     let payOut = 0;
-    for (const b of payables) if (b.due === day) payOut += b.amount;
+    for (const b of payables) if ((b.scheduled_for || b.due) === day) payOut += b.amount;
     drivers.payables -= payOut;
 
     scen.base += sales + invBase - fixedOut - supplierOut - payOut;

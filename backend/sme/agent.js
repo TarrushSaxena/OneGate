@@ -22,6 +22,8 @@ const { receivables, draftReminder } = require('./receivables');
 const { matchFinancing } = require('./financing');
 const { redactPII } = require('./guard');
 const { lenderShare } = require('./privacy');
+const discounting = require('./discounting');
+const gst = require('./gst');
 const actions = require('./actions');
 const audit = require('./auditChain');
 
@@ -43,7 +45,7 @@ function makeTools(tenantId, actor) {
   const tenant = getTenant(tenantId);
   const propose = (type, params) => {
     const r = actions.propose({ tenantId, actor, type, params, source: 'agent', idempotencyKey: `agent:${type}:${params.invoice_id || params.bill_id || params.product_id}:${tenant.profile.as_of}` });
-    if (r.denied) return { status: 'denied_by_policy', reasons: r.verdict.reasons };
+    if (r.denied) return { status: 'denied_by_policy', reasons: r.verdict.reasons, why_not: (r.why_not || []).map((w) => w.title) };
     return { status: r.action.status, action_id: r.action.id, summary: r.action.summary, warnings: r.action.warnings, duplicate: !!r.duplicate, _action: r.action };
   };
   const T = {
@@ -99,6 +101,25 @@ function makeTools(tenantId, actor) {
         const ben = bill && tenant.beneficiaries.find((b) => b.name === bill.supplier && b.verified);
         if (!bill || !ben) return { error: 'bill_or_verified_payee_not_found' };
         return propose('schedule_payment', { amount: bill.amount, beneficiary_id: ben.id, bill_id: bill.id, date: bill.due });
+      },
+    },
+    get_gst_calendar: {
+      tier: 'READ', desc: 'GST (GSTR-3B) due dates in the horizon with net cash payable, input tax credit at risk from suppliers who have not filed GSTR-1, and whether forecast cash covers each payment.',
+      args: {},
+      run: () => { const c = gst.calendar(tenant); return { dues: c.dues.map((d) => ({ due: d.due, period: d.period, net_cash_payable: d.net_cash_payable, itc_at_risk: d.itc_at_risk, itc_at_risk_from: d.itc_at_risk_from, status: d.status, cost_if_paid_7_days_late: d.cost_if_paid_7_days_late })), advice: c.advice }; },
+    },
+    find_early_pay_discounts: {
+      tier: 'SUGGEST', desc: 'Supplier early-payment discounts: annualised return vs the cost of money, and whether paying early keeps cash above the safety buffer. Proposes nothing.',
+      args: {},
+      run: () => { const s = discounting.scan(tenant); return { total_savings: s.total_savings, offers: s.offers.map((o) => ({ bill_id: o.bill_id, supplier: o.supplier, amount: o.amount, pay_amount: o.pay_amount, discount_inr: o.discount_inr, pay_by: o.pay_by, annualised_return_pct: o.annualised_return_pct, hurdle_pct: o.hurdle_pct, worth_it: o.worth_it, why_not: o.why_not.map((w) => w.title) })) }; },
+    },
+    propose_early_payment: {
+      tier: 'EXECUTE', desc: 'Queue an early, discounted payment of a bill for owner approval. Refused with a reason if the discount is not worth it or would break the cash buffer.',
+      args: { bill_id: 'string (required)' },
+      run: ({ bill_id } = {}) => {
+        const r = discounting.proposeEarlyPayment({ tenantId, actor, billId: String(bill_id || ''), source: 'agent' });
+        if (r.error) return { error: r.error, reasons: r.reasons || [], why_not: (r.why_not || []).map((w) => w.title) };
+        return { status: r.action.status, action_id: r.action.id, summary: r.action.summary, duplicate: r.duplicate, _action: r.action };
       },
     },
     propose_loan_application: {

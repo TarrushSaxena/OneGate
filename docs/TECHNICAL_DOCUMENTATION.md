@@ -50,6 +50,11 @@ OneGate SME is a new module inside **OneGate**, our existing AI helpdesk (Node/E
 | T4 | Chase a receivable | SUGGEST → EXECUTE | Reminder draft; "sent" to sandbox email only after owner approval | `.../receivables/:id/draft`, `POST .../actions` |
 | T5 | Match financing | SUGGEST | Five products ranked by total cost, with eligibility reasons and blockers | `POST /api/sme/:tid/financing/match` |
 | T6 | Pay a supplier / submit a loan application | EXECUTE | Pending approval; on owner approval a sandbox receipt (`SBX-…`) | `POST .../actions`, `.../approve` |
+| T7 | Plan GST payments | READ | GSTR-3B dues, output tax vs input credit, credit at risk, coverage, late cost | `GET /api/sme/:tid/gst` |
+| T8 | Take supplier early-pay discounts | READ → EXECUTE | Annualised return vs hurdle, joint buffer check; worthwhile offers queue for owner approval | `GET .../discounts`, `POST .../discounts/:billId/propose` |
+| T9 | Explain a refusal | READ | Why-not card: rule, limit, actual value, fix | every refusal body, `GET .../explain` |
+
+The agentic layer (multi-step planner, optional LLM tool-calling, autopilot, mandates, step-up codes, lender privacy, dynamic discounting, GST planning and why-not cards) is described in [`AGENTIC_COPILOT.md`](AGENTIC_COPILOT.md).
 
 All tasks can also be started in plain English through the copilot (`POST /api/sme/:tid/copilot`).
 
@@ -225,7 +230,7 @@ What each user sees follows their tier: viewers get read-only panels, and only o
 
 # 8. Testing and execution evidence
 
-- **Automated tests:** `node backend/tests/run-all-tests.js` runs **42 test files, all passing**. Of these, **28 SME tests** in `sme-01-core`, `sme-02-api` and `sme-03-secret-hygiene` cover:
+- **Automated tests:** `node backend/tests/run-all-tests.js` runs **44 test files, all passing**. Of these, **68 SME tests** in `sme-01-core`, `sme-02-api`, `sme-03-secret-hygiene`, `sme-04-agent` and `sme-05-innovation` cover:
   - deterministic data
   - forecast shape and backtest
   - receivable ranking and the planted injection note
@@ -240,13 +245,17 @@ What each user sees follows their tier: viewers get read-only panels, and only o
   - the allowlist and the bank-detail DENY
   - copilot grounding and blocking
   - secret hygiene: the suite fails if a tracked file contains a key or a published password
+  - the multi-step planner, LLM guardrails (grounding, refused tools, injection before the model), step-up codes, mandates, autopilot (`sme-04`)
+  - dynamic discounting, GST planning and why-not cards (`sme-05`)
 - **Sandbox run:** `node backend/sme/scripts/sandbox-run.js` runs the same script against all three SMEs and writes `docs/sandbox-evidence/`:
 
-| SME | Attacks blocked | Phishing warned | Policy denials | Owner-approved payment | Audit chain |
-|---|---|---|---|---|---|
-| Ananya Textiles | 2/2 | yes | 3/3 | executed after approval | valid (17 entries) |
-| Chai Point Cafe | 2/2 | yes | 3/3 | executed after approval | valid (16 entries) |
-| PixelForge Design | 2/2 | yes | 3/3 | executed after approval | valid (16 entries) |
+| SME | Attacks blocked | Phishing warned | Policy denials | Owner-approved payment | Early-pay discounts | Audit chain |
+|---|---|---|---|---|---|---|
+| Ananya Textiles | 2/2 | yes | 3/3 | executed after approval | held back (would breach buffer) | valid |
+| Chai Point Cafe | 2/2 | yes | 3/3 | executed after approval | ₹384 saved | valid |
+| PixelForge Design | 2/2 | yes | 3/3 | executed after approval | ₹540 saved | valid |
+
+  Full figures, including the agent plan, autopilot and GST columns, are in [`sandbox-evidence/SUMMARY.md`](sandbox-evidence/SUMMARY.md).
 
   It also writes `sandbox-run.jsonl` (every prompt, decision and result), one audit file per SME, and a dashboard screenshot.
 

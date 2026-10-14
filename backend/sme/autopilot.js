@@ -7,7 +7,9 @@
 //   3. if a cash gap is coming, run the multi-step gap planner, which
 //      queues reminders and a financing application for approval
 //   4. otherwise queue reminders for badly overdue, high-risk invoices
-//   5. write a morning brief the owner reads in the dashboard
+//   5. check the next GST payment is covered and flag credit at risk
+//   6. queue supplier early-pay discounts worth taking (or say why not)
+//   7. write a morning brief the owner reads in the dashboard
 // The autopilot acts as its own identity (sme_role "agent"): it can never
 // approve, never touch DENY actions, and the owner can pause it instantly.
 // ============================================================
@@ -18,6 +20,9 @@ const actions = require('./actions');
 const audit = require('./auditChain');
 const mandates = require('./mandates');
 const agent = require('./agent');
+const discounting = require('./discounting');
+const gst = require('./gst');
+const { explain } = require('./explain');
 
 const AGENT_ACTOR = Object.freeze({ id: 'agent:autopilot', sme_role: 'agent', name: 'OneGate Autopilot' });
 const state = new Map(); // tenantId -> { paused, runs: [] }
@@ -58,7 +63,8 @@ function runFor(tenantId, { trigger = 'manual', by = null } = {}) {
     if (r.outcome === 'escalate') {
       const ben = tenant.beneficiaries.find((b) => b.name === bill.supplier);
       const p = ben && actions.propose({ tenantId, actor: AGENT_ACTOR, type: 'schedule_payment', params: { amount: bill.amount, beneficiary_id: ben.id, bill_id: bill.id, date: bill.due }, source: 'autopilot', idempotencyKey: `autopilot:pay:${bill.id}` });
-      events.push({ kind: 'escalated', text: `Did not auto-pay ${bill.supplier} ${fmt(bill.amount)}: ${r.reasons.join(', ').replace(/_/g, ' ')}. Sent to you for approval.`, action_id: p?.action?.id });
+      const why = explain(r.reasons, { amount: bill.amount, buffer: f.safety_buffer });
+      events.push({ kind: 'escalated', text: `Did not auto-pay ${bill.supplier} ${fmt(bill.amount)}: ${why.map((w) => w.title.toLowerCase()).join('; ')}. Sent to you for approval.`, action_id: p?.action?.id, why_not: why });
     }
   }
 
@@ -76,11 +82,26 @@ function runFor(tenantId, { trigger = 'manual', by = null } = {}) {
     }
   }
 
+  // 5. GST: is the next payment covered, and is any input tax credit at risk?
+  const g = gst.calendar(tenant, { horizon: 45 });
+  if (g.next) events.push({ kind: 'gst', text: `GST ${fmt(g.next.net_cash_payable)} due ${g.next.due} (${g.next.status}).` + (g.next.itc_at_risk ? ` ${fmt(g.next.itc_at_risk)} of input credit at risk: ${g.next.itc_at_risk_from.join(', ')} hasn't filed GSTR-1.` : '') });
+
+  // 6. Early-pay discounts: queue the ones worth taking, explain the rest.
+  let savingsQueued = 0;
+  for (const o of discounting.scan(tenant).offers) {
+    if (o.worth_it) {
+      const r = discounting.proposeEarlyPayment({ tenantId, actor: AGENT_ACTOR, billId: o.bill_id, source: 'autopilot' });
+      if (r.action) { savingsQueued += o.discount_inr; events.push({ kind: 'discount', text: `${o.supplier} gives ${o.discount_pct}% off for paying by ${o.pay_by} (${o.annualised_return_pct}% a year vs ${o.hurdle_pct}% your cash earns). Queued ${fmt(o.pay_amount)} early payment; saves ${fmt(o.discount_inr)}.`, action_id: r.action.id }); }
+    } else if (o.eligible_terms) {
+      events.push({ kind: 'skipped', text: `Skipped ${o.supplier}'s ${o.discount_pct}% early-pay discount: ${o.why_not[0]?.title.toLowerCase()}.`, why_not: o.why_not });
+    }
+  }
+
   const pendingCount = actions.list(tenantId).filter((a) => a.status === 'pending_approval').length;
   const brief = {
     id: `run_${Date.now().toString(36)}`, trigger, started, finished: new Date().toISOString(),
-    headline: plan && plan.gap ? `Cash gap of ${fmt(plan.gap)} ahead. I've built a plan.` : events.some((e) => e.kind === 'paid') ? 'Bills paid within your mandate. Cash is on track.' : 'Cash is on track.',
-    events, pending_approvals: pendingCount, plan_steps: plan ? plan.steps.map((s) => s.tool) : [],
+    headline: plan && plan.gap ? `Cash gap of ${fmt(plan.gap)} ahead. I've built a plan.` : savingsQueued > 0 ? `Cash is on track. ${fmt(savingsQueued)} of supplier discounts ready for you.` : events.some((e) => e.kind === 'paid') ? 'Bills paid within your mandate. Cash is on track.' : 'Cash is on track.',
+    events, pending_approvals: pendingCount, savings_queued: savingsQueued, plan_steps: plan ? plan.steps.map((s) => s.tool) : [],
   };
   s.runs.unshift(brief); s.runs.length = Math.min(s.runs.length, 20);
   audit.append(tenantId, { actor: AGENT_ACTOR, action: 'autopilot.run_finished', tier: 'SUGGEST', decision: 'allow', metadata: { events: events.map((e) => e.kind), pending_approvals: pendingCount } });

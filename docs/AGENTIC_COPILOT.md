@@ -94,7 +94,45 @@ Never shared: transactions, customer names, invoice notes, beneficiary accounts,
 
 **Federated next step (designed, not built).** Banded features let one lender decide on one SME. To *improve* the model behind those decisions without pooling SME ledgers, lenders and the platform can train a shared risk model with horizontal federated learning (for example WeBank's open-source **FATE**): each party trains on its own repayment outcomes, only encrypted gradient updates are aggregated, and no raw ledger leaves its owner. OneGate's role would be the consented feature extractor on the SME side.
 
-## 7. Threat model additions for an acting agent
+## 7. Dynamic discounting (`backend/sme/discounting.js`)
+
+Suppliers often offer a discount for paying early (sandbox terms: 1% if paid within 2 days on a 9-day bill, 1.5% if paid 18 days early). For each open bill with terms the agent:
+
+1. annualises the discount: `d / (1 - d) × 365 / days early` (1% for 7 days = **52.67%**, 1.5% for 18 days = **30.88%**)
+2. sets a hurdle: idle-cash yield (6.5%, sandbox liquid fund), or, when the forecast shows a gap, the cheapest eligible loan APR (9.4% for Ananya), so it never borrows to chase a discount
+3. re-runs the pessimistic forecast with the outflow moved from the due date to the early date (smaller amount, earlier), **jointly with every other offer it takes** (highest return first), and refuses if cash dips below the safety buffer in between
+
+A worthwhile offer becomes a normal EXECUTE approval card for the **discounted** amount. The owner re-types that amount and enters a one-time code. `actions.propose` and the approval re-check both verify the amount and date match the supplier's terms, so a forged "discount" is denied (`discount_terms_mismatch`). On execution the bill is settled early at the discounted amount and the forecast moves the outflow.
+
+| SME | Result |
+|---|---|
+| Chai Point | Both offers worth it: ₹851 + ₹384 = **₹1,235** saved, queued by the autopilot for approval |
+| PixelForge | Both worth it: ₹378 + ₹540 |
+| Ananya | Both **held back**: paying ₹4,15,800 early breaks the ₹4,12,000 buffer on 14 Oct (hurdle 9.4% because a gap is coming) |
+
+## 8. GST-aware planning (`backend/sme/gst.js`)
+
+- **Calendar:** every GSTR-3B due date in the horizon (the 20th for monthly filers). The net cash payable is the same figure the forecast subtracts, split into output tax and input tax credit (ITC) from the last month's supplier purchases.
+- **Credit at risk:** ITC is available only for invoices in your GSTR-2B (s.16(2)(aa) CGST Act). A supplier that hasn't filed GSTR-1 pushes that credit to a later month, so this month's cash payment rises (deferred, not lost). Ananya: ₹25,248 at risk from Om Logistics. PixelForge: ₹4,134 from Prime Packaging.
+- **Coverage:** `covered` (buffer intact even if the credit is blocked), `tight` (only if it isn't blocked) or `short`, from the pessimistic path on the due date.
+- **Cost of paying late:** 18% a year on the net cash liability (s.50) plus ₹50/day (s.47), capped at ₹2,000 / ₹5,000 / ₹10,000 by turnover. When cash is short the agent says plainly: never delay GST, borrowing is cheaper.
+- **Sector rules:** Chai Point (restaurant service at 5%) gets no ITC; PixelForge (design services) is at 18% with ITC.
+
+Indicative sandbox rates, not tax advice. Production reads filing status from GSTN through a GSP.
+
+## 9. "Why not?" cards (`backend/sme/explain.js`)
+
+Every reason code the system produces (policy, mandates, step-up, discounts, guards) maps to a card with the **rule**, a **detail** with the real numbers, and a **fix**. Explaining never changes a decision. Cards appear on:
+
+- every API refusal (`why_not` in 400/401/403/409 bodies)
+- approval-card warnings
+- autopilot brief events (escalations, held-back discounts)
+- refused agent tool calls, including on the LLM path
+- the chat: ask *"why not?"* and the copilot explains the last refusal straight from the audit chain
+
+`GET /api/sme/:tid/explain?codes=…` exposes the mapping.
+
+## 10. Threat model additions for an acting agent
 
 | Threat | Control | Test |
 |---|---|---|
@@ -105,12 +143,15 @@ Never shared: transactions, customer names, invoice notes, beneficiary accounts,
 | Runaway autonomy | Mandate caps, expiry, cash-buffer rule, revoke, pause | `sme-04` escalation, no-double-pay, kill-switch tests |
 | Stolen session approves a payment | One-time code bound to action and amount | `sme-02`, `sme-04` step-up tests |
 | Lender over-collection | Banded features + commitment only | `sme-04` lender-share test |
+| Forged or inflated "discount" payment | Amount and date must equal the supplier's terms, re-checked at approval | `sme-05` forged-discount test |
+| Agent drains cash chasing discounts | Hurdle rate + joint cash-buffer check across all offers | `sme-05` buffer and joint-offer tests |
+| Opaque refusals push owners to bypass the tool | Why-not card on every refusal | `sme-05` why-not tests |
 
-## 8. Try it
+## 11. Try it
 
 ```bash
 cd backend && npm install && npm run provision:demo && npm start
 # http://localhost:3000/sme.html
 ```
 
-Ananya owner → **Plan my cash gap** → approve the loan (code shown as sandbox SMS). Chai Point owner → sign a mandate for FreshFarm Dairy → **Run autopilot now**. Optional: `SME_LLM_API_KEY=... SME_LLM_MODEL=... npm start` to switch the copilot to LLM tool-calling.
+Ananya owner → **Plan my cash gap** → approve the loan (code shown as sandbox SMS). Chai Point owner → sign a mandate for FreshFarm Dairy → **Run autopilot now** (pays the bill, queues two early-pay discounts). Ananya → *Supplier discounts & GST* → **Why not?**. Optional: `SME_LLM_API_KEY=... SME_LLM_MODEL=... npm start` to switch the copilot to LLM tool-calling.

@@ -6,8 +6,8 @@
 
 **FinTechathon 2026 · International Track · Topic E: SME Finance Copilot · Team GateKeepers**
 
-[![Tests](https://img.shields.io/badge/tests-43%20suites%20passing-2ea44f)](#-tests)
-[![SME tests](https://img.shields.io/badge/SME%20tests-46-2ea44f)](backend/tests)
+[![Tests](https://img.shields.io/badge/tests-44%20suites%20passing-2ea44f)](#-tests)
+[![SME tests](https://img.shields.io/badge/SME%20tests-68-2ea44f)](backend/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Data](https://img.shields.io/badge/data-synthetic%20sandbox%20only-6f42c1)](docs/sandbox-evidence/SUMMARY.md)
 [![Security](https://img.shields.io/badge/security-self--assessed-0969da)](docs/SECURITY_SELF_ASSESSMENT.md)
@@ -49,8 +49,22 @@ Every step is a guarded tool call you can see on screen and in the audit chain. 
 | ✍️ **Spending mandates** | Bounded autonomy: one verified payee, ≤ ₹2,00,000 per payment, ≤ ₹5,00,000 a month, ≤ 90 days, revocable, signed with a one-time code |
 | 🔐 **Step-up codes** | Payments, loan applications and mandates need a 6-digit code bound to that action and amount (5 min, 3 tries, single use) |
 | 🫥 **Share the score, not the books** | A lender sees 6 banded features and a SHA-256 ledger commitment, never transactions, customer names or balances |
+| 💹 **Dynamic discounting** | Finds supplier early-pay discounts, annualises them (1% for 7 days early = **52.67% a year**), and takes one only if it beats the cost of money **and** keeps cash above the buffer |
+| 🧾 **GST-aware planning** | Puts every GSTR-3B on the cash calendar, flags input tax credit at risk from suppliers who haven't filed GSTR-1, and checks the money is there on the 20th |
+| ❓ **"Why not?" cards** | Every refusal says which rule fired, the limit, the actual number and what the owner can do, in the dashboard, the chat, the brief and the API |
 
 <img src="docs/screenshots/sme-autopilot-mandate.jpg" alt="Chai Point Cafe: financing match, what a lender sees (banded features only), a signed spending mandate with one autonomous payment, and the hash-chained audit trail" width="900">
+
+## Innovation: what a chatbot can't do
+
+Most finance copilots answer questions. OneGate SME **acts**, and every act is bounded by code rather than by the model's judgement.
+
+1. **AI as a financial participant, safely.** The agent proposes, schedules and (inside an owner-signed mandate) pays. Authority lives in a policy engine checked twice, never in a prompt. The agent has its own identity and can't approve anything, including its own proposals.
+2. **A grounding firewall for LLM answers.** An optional LLM picks tools from a fixed registry. Any ₹ amount in its answer that no tool returned is rejected and the deterministic planner answers instead. Hallucinated money never reaches the owner.
+3. **Dynamic discounting: spare cash earns 30 to 50% a year.** Suppliers often offer 1 to 2% for paying early. The agent annualises each offer (`d/(1-d) × 365/days early`) and compares it with a hurdle: what idle cash earns (6.5%), or, when a cash gap is coming, the cheapest eligible loan (it won't borrow at 9.4% to chase a discount). Then it re-runs the pessimistic forecast with the payment moved earlier, counting every other offer it takes. On Chai Point it queues both offers (**₹1,235 saved**, owner approves each). On Ananya it **holds both back**, because paying ₹4,15,800 early would breach the buffer on 14 Oct. Forged discounts (wrong amount or date) are denied.
+4. **GST-aware cash planning for India.** GST is the one outflow an SME can't move. The agent puts each GSTR-3B (the 20th, monthly filers) on the cash calendar and splits it into output tax and input tax credit. It flags credit at risk: since s.16(2)(aa) CGST Act, credit only counts if the supplier's invoice is in your GSTR-2B. Ananya's ₹25,248 of credit from Om Logistics is at risk, which would raise the 20 Oct payment. It also checks coverage (covered, tight or short) and the cost of paying late: 18% a year (s.50) plus ₹50 a day (s.47), capped by turnover. A café at 5% without ITC is modelled correctly.
+5. **"Why not?" cards: explainable refusals.** Every denial, escalation and block carries the rule, the limit, the real number and a fix. For example: *"Paying ₹4,15,800 early pulls cash below the ₹4,12,000 safety buffer on 2026-10-14. What you can do: pay on the normal due date instead."* Ask the copilot *"why not?"* and it explains the last refusal straight from the audit chain.
+6. **Share the score, not the books.** Lenders get banded features, a ledger commitment and an Account-Aggregator-style consent artefact, never the ledger itself.
 
 ## What OneGate SME does
 
@@ -61,6 +75,8 @@ Every step is a guarded tool call you can see on screen and in the audit chain. 
 | ✉️ | **Chase a payment** | A ready reminder draft. It goes to the (sandbox) customer only after the owner approves |
 | 🏦 | **Match financing** | Five products (PMMY Tarun and Kishor, cash credit, TReDS, NBFC line) ranked by **total cost**, each with the reason it fits or doesn't |
 | 💸 | **Pay a supplier / apply for a loan** | Becomes an approval card. Nothing executes until the owner re-types the exact amount and enters a one-time code |
+| 💹 | **Pay suppliers early when it pays** | Early-pay offers scored against the cost of money and the cash buffer; worthwhile ones become approval cards for the discounted amount |
+| 🧾 | **Plan for GST** | Next GSTR-3B with output tax, input credit, credit at risk, whether cash covers it, and the cost of paying late |
 | 🛡️ | **Refuse attacks** | Prompt injections hidden in invoice notes and phishing "bank details changed" emails are flagged, blocked and logged |
 
 ## Why it's safe: authority comes from policy, not from language
@@ -69,7 +85,7 @@ The copilot can say anything; it can only **do** what the policy engine allows. 
 
 | Tier | Actions | Who |
 |---|---|---|
-| **READ** | Overview, forecast, receivables, financing | owner, accountant, viewer |
+| **READ** | Overview, forecast, receivables, financing, GST calendar, early-pay offers | owner, accountant, viewer |
 | **SUGGEST** | Draft a reminder, recommend financing | owner, accountant |
 | **EXECUTE** | Send reminder, schedule payment, submit loan application, sign or revoke a mandate | owner, accountant or the autopilot agent *propose*; **only the owner approves** |
 | **DENY** | Add a beneficiary, change bank details, disable audit | nobody, ever, through OneGate |
@@ -89,6 +105,8 @@ Walk-forward backtest of the 30-day forecast, plus the scripted sandbox run ([fu
 | Chai Point Cafe | Retail café, steady sales | **3.93%** | 2/2 | 3/3 | executed after approval | no gap, nothing proposed | paid ₹22,400 inside mandate | valid |
 | PixelForge Design Studio LLP | B2B services, lumpy invoices | **7.89%** | 2/2 | 3/3 | executed after approval | no gap in 45 days | paid ₹18,500 inside mandate | valid |
 | Ananya Textiles Pvt Ltd | Wholesale, slow payers | **26%** | 2/2 | 3/3 | executed after approval | 8 tool steps, 4 approval cards | **refused to auto-pay** (would breach buffer), escalated | valid |
+
+The same run takes **₹384 and ₹540** of early-pay discounts on Chai Point and PixelForge (owner-approved, one-time code). It **holds back** Ananya's discounts with a why-not card, denies a forged discount on every tenant, and flags GST credit at risk (₹25,248 for Ananya, ₹4,134 for PixelForge). The Chai Point figure is ₹384 because that run had already paid the FreshFarm bill in full, so only one offer was left.
 
 Ananya's error is the honest one: slow, irregular payers are hard to forecast, which is exactly why the copilot shows a low–high band and a buffer alert instead of a single number.
 
@@ -111,27 +129,28 @@ On the sign-in screen pick a demo user (development mode only, see [`DEMO_ACCESS
 | `owner.ananya@company.com` | owner | Press **Plan my cash gap**, then approve a payment with the amount and the one-time code |
 | `accounts.ananya@company.com` | accountant | Propose a payment, then see that you can't approve it |
 | `viewer.pixelforge@company.com` | viewer | Read-only: every action button is gone |
-| `owner.chai@company.com` | owner | Sign a mandate for FreshFarm Dairy, press **Run autopilot now** and watch it pay the bill on its own. Other tenants' data is refused |
+| `owner.chai@company.com` | owner | Sign a mandate for FreshFarm Dairy, press **Run autopilot now** and watch it pay the bill on its own and queue two early-pay discounts. Other tenants' data is refused |
 
 Then press **Try an attack** in the copilot chat.
 
-### Demo script (3 minutes)
+### Demo script (about 3 minutes)
 
 1. **(0:00)** Sign in as the Ananya owner. The autopilot brief already says *"Cash gap of ₹6,41,598 ahead. I've built a plan."*
 2. **(0:20)** Press **Plan my cash gap**. Watch 8 tool calls run: forecast, debtors, three reminders, financing, loan application, simulation. The low point goes from -₹2,29,598 to ₹4,58,364.
 3. **(1:00)** In Approvals, approve the loan application: press Approve, type the one-time code (shown as a sandbox SMS). Its receipt carries a consent artefact and shows what the lender saw.
 4. **(1:30)** Press **Try an attack**. It's blocked before any model runs and logged in the audit chain.
-5. **(1:50)** Switch to Chai Point. Sign a mandate for FreshFarm Dairy (code again), press **Run autopilot now**: it pays the ₹22,400 bill on its own and drafts two reminders for approval. Back on Ananya, the same autopilot **refuses** to auto-pay because cash would breach the buffer.
-6. **(2:30)** Revoke the mandate, pause the autopilot, show the audit chain is valid.
+5. **(1:50)** Switch to Chai Point. Sign a mandate for FreshFarm Dairy (code again), press **Run autopilot now**: it pays the ₹22,400 bill on its own, queues two early-pay discounts (52.67% and 30.88% a year, ₹1,235 saved) and shows the GST due on the 20th is covered.
+6. **(2:20)** Back on Ananya, the same autopilot **holds back** both discounts. Press **Why not?** in *Supplier discounts & GST*: paying early would breach the buffer. Note the ₹25,248 of GST credit at risk.
+7. **(2:45)** Revoke the mandate, pause the autopilot, show the audit chain is valid.
 
 ## 🧪 Tests
 
 ```bash
 cd backend
-node tests/run-all-tests.js   # 43 suites, including 46 SME tests
+node tests/run-all-tests.js   # 44 suites, including 68 SME tests
 ```
 
-SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, audit chain), `sme-02-api` (tenancy, tiers, approvals with step-up codes, limits over HTTP), `sme-03-secret-hygiene` (no keys or passwords in the tree), `sme-04-agent` (multi-step planner, LLM tool-calling guardrails with a scripted model: grounding fallback, refused tools, injection blocked before the model, API failure; step-up codes; mandates; autopilot escalation, no double payment, kill switch; lender data minimisation).
+SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, audit chain), `sme-02-api` (tenancy, tiers, approvals with step-up codes, limits over HTTP), `sme-03-secret-hygiene` (no keys or passwords in the tree), `sme-04-agent` (multi-step planner, LLM tool-calling guardrails with a scripted model: grounding fallback, refused tools, injection blocked before the model, API failure; step-up codes; mandates; autopilot escalation, no double payment, kill switch; lender data minimisation), `sme-05-innovation` (discount maths, idle-cash vs loan hurdle, buffer refusal, offers checked together, early payment end-to-end with amount and code, forged-discount denial, role and tenant limits; GST calendar, credit at risk, no-ITC restaurant, covered/tight/short, late-cost caps; why-not cards on every API refusal, in the brief, the chat and the LLM path, with the grounding check catching an invented saving).
 
 ## API
 
@@ -149,6 +168,9 @@ SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, aud
 | `GET` · `POST` | `/api/sme/:tid/mandates` · `/mandates/challenge` · `/mandates` · `/mandates/:id/revoke` | owner + one-time code |
 | `POST` | `/api/sme/:tid/actions/:id/stepup` | owner: one-time code for this action |
 | `GET` | `/api/sme/:tid/privacy/lender-share` | SUGGEST |
+| `GET` | `/api/sme/:tid/gst` | READ: GSTR-3B calendar, credit at risk, coverage, late cost |
+| `GET` · `POST` | `/api/sme/:tid/discounts` · `/discounts/:billId/propose` | READ · queues an EXECUTE approval card (or 409 with why-not) |
+| `GET` | `/api/sme/:tid/explain?codes=…` | plain-language why-not cards for reason codes |
 | `POST` | `/api/sme/:tid/actions` | EXECUTE (propose) |
 | `POST` | `/api/sme/:tid/actions/:id/approve` · `/reject` | owner only |
 | `GET` | `/api/sme/:tid/audit` · `/audit/verify` | READ |
@@ -176,6 +198,9 @@ SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, aud
 | `mandates.js` | Owner-signed spending mandates (bounded autonomy) |
 | `stepup.js` | One-time codes bound to an action and amount |
 | `privacy.js` | Lender share: banded features + ledger commitment |
+| `discounting.js` | Dynamic discounting: annualised return vs hurdle, joint cash-buffer check, early-pay proposals |
+| `gst.js` | GSTR-3B calendar, output tax vs input credit, credit at risk, coverage, late-payment cost |
+| `explain.js` | "Why not?" cards: reason code → rule, limit, actual value, fix |
 
 ## Compliance alignment (indicative, not certified)
 
@@ -184,10 +209,11 @@ SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, aud
 - **RBI Account Aggregator framework:** each loan application carries a purpose-bound, time-boxed, revocable consent artefact.
 - **NPCI e-mandate / UPI AutoPay pattern:** autonomous payments only under an owner-registered mandate with a cap, a validity period and revocation.
 - **CERT-In:** timestamped, tamper-evident decision log.
+- **GST (CGST Act):** GSTR-3B due dates, ITC only via GSTR-2B (s.16(2)(aa)), 18% interest (s.50) and ₹50/day late fee capped by turnover (s.47). Sector rates are indicative sandbox settings, not tax advice.
 
 ## Known limits and what's next
 
-In-memory state, a static membership table, rule-based injection detection, sandbox delivery of one-time codes (shown on screen; a real deployment sends them by SMS or uses a passkey), planning assumptions for reminder recovery (60% of probability-weighted value within 7 days, stated in every plan), and a scenario band rather than a calibrated interval. Federated learning is described, not built. Next: persistent append-only storage, passkeys, a calibrated forecast interval, real Account Aggregator connectors, TReDS and lender APIs, a federated credit model across lenders (FATE), and Docker Compose deployment. Details in the [security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md).
+In-memory state, a static membership table, rule-based injection detection, sandbox delivery of one-time codes (shown on screen; a real deployment sends them by SMS or uses a passkey), planning assumptions for reminder recovery (60% of probability-weighted value within 7 days, stated in every plan), a scenario band rather than a calibrated interval, early-pay terms and GSTR-1 filing status supplied by the sandbox (a real deployment reads them from e-invoices and the GSTN/GSP APIs), and indicative GST rates. Federated learning is described, not built. Next: persistent append-only storage, passkeys, a calibrated forecast interval, real Account Aggregator connectors, TReDS and lender APIs, a federated credit model across lenders (FATE), and Docker Compose deployment. Details in the [security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md).
 
 ## Repository layout
 
@@ -195,7 +221,7 @@ In-memory state, a static membership table, rule-based injection detection, sand
 OneGate/
 ├── backend/
 │   ├── sme/             # SME Finance Copilot (this submission)
-│   ├── tests/           # 43 suites, sme-01..04 are the SME ones
+│   ├── tests/           # 44 suites, sme-01..05 are the SME ones
 │   ├── auth/ routes/ services/ ml/   # OneGate platform core (auth, audit, sessions)
 │   └── server.js
 ├── frontend/

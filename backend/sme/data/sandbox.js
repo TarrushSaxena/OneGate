@@ -39,6 +39,8 @@ const PROFILES = [
     rent: 160000,
     supplier_share: 0.5,
     bills: { main: 'Gujarat Yarn Mills', second: 'Om Logistics', soon: ['Om Logistics', 48000] },
+    // GST: fabrics at 5% with input tax credit; one supplier has not filed GSTR-1 yet.
+    gst: { output_rate_pct: 5, input_rate_pct: 5, itc_allowed: true, filer: 'monthly', gstr1_pending: ['Om Logistics'] },
     seed: 11,
   },
   {
@@ -57,6 +59,8 @@ const PROFILES = [
     rent: 95000,
     supplier_share: 0.38,
     bills: { main: 'FreshFarm Dairy', second: 'Prime Packaging', soon: ['FreshFarm Dairy', 22400] },
+    // Restaurant service at 5% is charged without input tax credit.
+    gst: { output_rate_pct: 5, input_rate_pct: 5, itc_allowed: false, filer: 'monthly', gstr1_pending: [] },
     seed: 23,
   },
   {
@@ -75,6 +79,7 @@ const PROFILES = [
     rent: 70000,
     supplier_share: 0.12,
     bills: { main: 'CloudHost India', second: 'Prime Packaging', soon: ['CloudHost India', 18500] },
+    gst: { output_rate_pct: 18, input_rate_pct: 18, itc_allowed: true, filer: 'monthly', gstr1_pending: ['Prime Packaging'] },
     seed: 37,
   },
 ];
@@ -166,8 +171,9 @@ function buildTenant(p) {
   // Bills and verified beneficiaries are sector-specific (a cafe pays a dairy, not a yarn mill).
   const B = p.bills;
   const payables = [
-    { id: `${p.id}_bill1`, supplier: B.main, amount: round2(p.monthly_revenue * p.supplier_share * 0.35), due: iso(SANDBOX_TODAY + 9 * DAY), status: 'open' },
-    { id: `${p.id}_bill2`, supplier: B.second, amount: round2(p.monthly_revenue * 0.04), due: iso(SANDBOX_TODAY + 21 * DAY), status: 'open' },
+    // Early-payment terms as suppliers commonly offer them ("1/2 net 9": 1% off if paid within 2 days).
+    { id: `${p.id}_bill1`, supplier: B.main, amount: round2(p.monthly_revenue * p.supplier_share * 0.35), due: iso(SANDBOX_TODAY + 9 * DAY), status: 'open', early_pay: { discount_pct: 1.0, pay_by: iso(SANDBOX_TODAY + 2 * DAY) } },
+    { id: `${p.id}_bill2`, supplier: B.second, amount: round2(p.monthly_revenue * 0.04), due: iso(SANDBOX_TODAY + 21 * DAY), status: 'open', early_pay: { discount_pct: 1.5, pay_by: iso(SANDBOX_TODAY + 3 * DAY) } },
     // A small recurring bill due in 2 days: the case a spending mandate is for.
     { id: `${p.id}_bill3`, supplier: B.soon[0], amount: B.soon[1], due: iso(SANDBOX_TODAY + 2 * DAY), status: 'open', recurring: 'weekly' },
   ];
@@ -178,10 +184,11 @@ function buildTenant(p) {
     { id: `${p.id}_ben3`, name: 'Landlord', account_masked: 'XXXX0042', verified: true },
   ];
 
-  const { seed, bills, opening_balance, min_balance_target, monthly_revenue, payroll, rent, supplier_share, ...publicProfile } = p;
+  const { seed, bills, gst, opening_balance, min_balance_target, monthly_revenue, payroll, rent, supplier_share, ...publicProfile } = p;
   return {
     profile: { ...publicProfile, opening_balance: openingBalance, current_balance: bal, as_of: iso(SANDBOX_TODAY) },
     recurring: { payroll: { amount: p.payroll, day: 7 }, rent: { amount: p.rent, day: 1 }, gst: { amount: round2(p.monthly_revenue * 0.06), day: 20 } },
+    gst: { ...p.gst },
     transactions, invoices, payables, beneficiaries,
   };
 }
