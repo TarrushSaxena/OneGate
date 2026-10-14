@@ -41,4 +41,4 @@ npm start                                # API on :3000
 Demo SME users (created by `npm run provision:demo` and listed on the dashboard's sign-in screen): `owner.ananya@company.com` (owner), `accounts.ananya@company.com` (accountant), `owner.chai@company.com`, `owner.pixelforge@company.com` and `viewer.pixelforge@company.com`. See `backend/sme/tenancy.js`.
 
 ## Status
-Done: backend module, dashboard (`frontend/sme.html`), tests and sandbox evidence. Possible extension: optional LLM narration over the deterministic tool outputs (not implemented).
+Done: backend module, dashboard (`frontend/sme.html`), tests and sandbox evidence. v1.2 adds the agentic layer: multi-step planner, optional LLM tool-calling with a grounding check, daily autopilot, owner-signed spending mandates, step-up codes and privacy-preserving lender sharing. See [AGENTIC_COPILOT.md](AGENTIC_COPILOT.md).
