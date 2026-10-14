@@ -183,6 +183,16 @@ router.get('/:tid/audit', (req, res) => {
   res.json({ entries: audit.list(req.sme.tenant_id), verification: audit.verify(req.sme.tenant_id) });
 });
 
+router.post('/:tid/audit/tamper-drill', (req, res) => {
+  if (req.sme.sme_role === 'viewer') return res.status(403).json(withWhy({ error: 'policy_denied', reasons: ['role_viewer_lacks_audit'] }));
+  const r = audit.tamperDrill(req.sme.tenant_id);
+  audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'audit.tamper_drill', tier: 'READ', decision: 'allow', metadata: { edited_seq: r.edited_seq || null, detected_at: r.tampered_copy ? r.tampered_copy.broken_at_seq || null : null } });
+  res.json(r);
+});
+
+// Cockpit: one read-only summary for the treasury view (no side effects).
+router.get('/:tid/cockpit', gate('view_overview'), (req, res) => res.json(require('./cockpit').cockpit(req.tenant, req.sme)));
+
 router.get('/:tid/audit/verify', (req, res) => res.json(audit.verify(req.sme.tenant_id)));
 
 module.exports = router;

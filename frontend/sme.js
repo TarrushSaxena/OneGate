@@ -13,17 +13,25 @@
   }
   // "Why not?" cards: rule, detail and the fix for any refusal.
   const whyHtml = (list) => (list || []).map((w) => `<div class="why"><span class="rule">${esc(w.rule)}</span><b>${esc(w.title)}</b><div>${esc(w.detail)}</div><div class="fix">${esc(w.fix)}</div></div>`).join('');
-  function showWhy(list, fallback) {
+  function showWhy(list, fallback, head) {
     if (!list || !list.length) return toast(fallback || 'Not allowed');
     document.querySelectorAll('.whypop').forEach((x) => x.remove());
-    const d = document.createElement('div'); d.className = 'whypop'; d.innerHTML = `<div class="muted">Why not?</div>${whyHtml(list)}`;
+    const d = document.createElement('div'); d.className = 'whypop'; d.innerHTML = `<div class="muted">${esc(head || 'Why not?')}</div>${whyHtml(list)}`;
     d.onclick = () => d.remove(); document.body.appendChild(d); setTimeout(() => d.remove(), 9000);
   }
   const refuse = (err, fallback) => showWhy(err.data?.why_not, fallback || `Not allowed: ${err.message}`);
+  // Out-of-band codes: shown on a simulated owner's phone, never on the approval card.
+  function sms(text, code) {
+    $('#phone').hidden = false;
+    const list = $('#sms'); if (list.querySelector('.muted:only-child')) list.innerHTML = '';
+    const d = document.createElement('div'); d.className = 'sms-msg';
+    d.innerHTML = `<div>${esc(text)}</div>${code ? `<b class="code">${esc(code)}</b>` : ''}<span class="muted">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+    list.prepend(d); $('#phone').classList.remove('ping'); void $('#phone').offsetWidth; $('#phone').classList.add('ping');
+  }
   function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); }
 
   async function showLogin() {
-    $('#login').hidden = false; $('#app').hidden = true; $('#who').innerHTML = '';
+    $('#login').hidden = false; $('#app').hidden = true; $('#who').innerHTML = ''; $('#roles').hidden = true; $('#apPill').hidden = true; $('#fab').hidden = true; $('#guard').hidden = true; $('#phone').hidden = true; closeDrawer();
     try {
       const { accounts } = await api('/api/auth/demo-accounts');
       const sme = accounts.filter((a) => a.key.startsWith('sme-'));
@@ -41,11 +49,14 @@
     try { ME = await api('/api/sme/me'); } catch (e) { return showLogin(); }
     TID = ME.tenant_id;
     $('#login').hidden = true; $('#app').hidden = false;
-    $('#who').innerHTML = `${esc(ME.tenant_name)} · <b>${esc(ME.sme_role)}</b> <button class="ghost" id="logout">Switch</button>`;
+    $('#who').innerHTML = `${esc(ME.tenant_name)} <button class="ghost" id="logout">Switch business</button>`;
+    $('#fab').hidden = false; $('#guard').hidden = false;
+    $('#phone').hidden = true; $('#sms').innerHTML = '<div class="muted">Codes for payments, loans and mandates arrive here, not on the approval card.</div>';
+    loadRoles();
     $('#logout').onclick = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); showLogin(); };
     $('#chat').innerHTML = ''; $('#trace').innerHTML = '';
     say('a', `Hi! I'm the OneGate copilot for ${ME.tenant_name}. I can read your books and draft things on my own. Anything that moves money or contacts customers waits for the owner's approval.`);
-    await Promise.all([loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts()]);
+    await Promise.all([loadCockpit(), loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts()]);
   }
 
   async function loadOverview() {
@@ -106,14 +117,20 @@
       ${a.why_warnings?.length ? whyHtml(a.why_warnings) : a.warnings?.length ? `<div class="w">⚠ ${esc(a.warnings.join('; ').replace(/_/g, ' '))}</div>` : ''}
       ${a.preview ? `<details><summary class="muted">Preview email</summary><pre class="muted" style="white-space:pre-wrap">${esc(a.preview.subject)}\n\n${esc(a.preview.body)}</pre></details>` : ''}
       ${a.receipt ? `<div class="muted">Receipt ${esc(a.receipt.reference)}${a.mandate_id ? ` · paid by autopilot under ${esc(a.mandate_id)}` : ''}</div>` : ''}
-      ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner's phone · <span class="sms">sandbox SMS: ${esc(chl.sandbox_code || '')}</span></div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
-        : `<div class="row">${a.type === 'schedule_payment' && !a.needs_step_up ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<button data-${a.needs_step_up ? 'su' : 'ap'}="${a.id}">Approve</button><button class="ghost" data-rj="${a.id}">Reject</button></div>`) : ''}
+      ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner’s phone. Enter it here.</div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
+        : `<div class="row">${a.type === 'schedule_payment' && !a.needs_step_up ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<button data-${a.needs_step_up ? 'su' : 'ap'}="${a.id}">Approve</button><button class="ghost" data-rj="${a.id}">Reject</button></div>`) : a.status === 'pending_approval' ? `<div class="row"><button disabled title="Separation of duties: only the owner can approve">Approve · owner only</button><span class="muted">${ME.sme_role === 'viewer' ? 'viewers can only look' : 'accountants can propose, not approve'}</span></div>` : ''}
       </div>`;
-    }).join('') : '<div class="muted">Nothing waiting. Ask the copilot to plan the cash gap, pay a bill or send a reminder.</div>';
+    }).join('') : '<div class="muted empty">Nothing waiting. Run “Plan my cash gap”, or ask the copilot to pay a bill or send a reminder.</div>';
+    $('#laneWaitMeta').textContent = owner ? `${actions.filter((a) => a.status === 'pending_approval').length} to approve` : ME.sme_role === 'viewer' ? 'view only' : 'you propose, the owner approves';
     $('#approvals').onclick = async (e) => {
       const su = e.target.closest('[data-su]'); const ap = e.target.closest('[data-ap]'); const rj = e.target.closest('[data-rj]');
       try {
-        if (su) { challenges[su.dataset.su] = await api(`/api/sme/${TID}/actions/${su.dataset.su}/stepup`, { method: 'POST' }); return loadApprovals(); }
+        if (su) {
+          const c = await api(`/api/sme/${TID}/actions/${su.dataset.su}/stepup`, { method: 'POST' }); challenges[su.dataset.su] = c;
+          const a = (await api(`/api/sme/${TID}/actions`)).actions.find((x) => x.id === su.dataset.su);
+          sms(`OneGate: code to approve "${a ? a.summary : 'this action'}". Valid 5 min. Never share it.`, c.sandbox_code || '(sent by SMS)');
+          return loadApprovals();
+        }
         if (ap) {
           const id = ap.dataset.ap; const c = $(`[data-c="${id}"]`); const o = $(`[data-o="${id}"]`);
           await api(`/api/sme/${TID}/actions/${id}/approve`, { method: 'POST', body: { confirm_amount: c ? Number(c.value) : undefined, otp: challenges[id] ? { challenge_id: challenges[id].challenge_id, code: o ? o.value.trim() : '' } : undefined } });
@@ -146,6 +163,8 @@
     return JSON.stringify(o).slice(0, 120);
   }
   function renderTrace(steps, planner) {
+    $('#traceBox').hidden = !(steps && steps.length);
+    $('#traceSum').textContent = `How the agent planned it · ${(steps || []).length} steps, each tool tier-checked`;
     $('#trace').innerHTML = (steps || []).map((s, i) => `<li style="animation-delay:${i * 90}ms"><span class="n">${s.step}</span><code>${esc(s.tool)}</code><span class="tier ${TIER[s.tool] || 'READ'}">${TIER[s.tool] || '?'}</span><span class="o muted">${esc(obsLine(s))}</span></li>`).join('')
       + (steps?.length ? `<li style="grid-template-columns:1fr" class="muted">Planner: ${esc(planner || 'deterministic')} · every EXECUTE step waits for the owner · every step is in the audit chain</li>` : '');
   }
@@ -192,7 +211,8 @@
     mdParams = { beneficiary_name: name, beneficiary_id: (window.__benByName || {})[name], max_per_payment: Number($('#mdPer').value), monthly_cap: Number($('#mdCap').value), valid_days: Number($('#mdDays').value), purpose: 'recurring supplier bills' };
     try {
       mdChallenge = (await api(`/api/sme/${TID}/mandates/challenge`, { method: 'POST', body: mdParams })).challenge;
-      $('#mdOtp').innerHTML = `<div class="otp"><div class="muted">Signing a mandate needs a code · <span class="sms">sandbox SMS: ${esc(mdChallenge.sandbox_code || '')}</span></div><div class="row"><input id="mdCode" placeholder="6-digit code" maxlength="6"><button id="mdSign">Confirm mandate</button></div></div>`;
+      $('#mdOtp').innerHTML = `<div class="otp"><div class="muted">Signing a mandate needs the code sent to the owner’s phone.</div><div class="row"><input id="mdCode" placeholder="6-digit code" maxlength="6"><button id="mdSign">Confirm mandate</button></div></div>`;
+      sms(`OneGate: code to sign a mandate for ${mdParams.beneficiary_name}, up to ${inr(mdParams.max_per_payment)} a payment. Valid 5 min.`, mdChallenge.sandbox_code || '(sent by SMS)');
       $('#mdSign').onclick = async () => {
         try { await api(`/api/sme/${TID}/mandates`, { method: 'POST', body: { ...mdParams, otp: { challenge_id: mdChallenge.challenge_id, code: $('#mdCode').value.trim() } } }); toast('Mandate signed'); $('#mdOtp').innerHTML = ''; }
         catch (err) { refuse(err, `Not signed: ${err.message}`); }
@@ -225,6 +245,7 @@
   }
 
   async function loadAudit() {
+    loadCockpit().catch(() => {});
     if (ME.sme_role === 'viewer') { $('#audit').innerHTML = '<li class="muted">Viewers can’t see the audit trail.</li>'; $('#auditOk').textContent = ''; return; }
     const { entries, verification } = await api(`/api/sme/${TID}/audit`);
     $('#auditOk').className = `pill ${verification.valid ? 'good' : 'bad'}`;
@@ -248,6 +269,7 @@
   }
   async function ask(q) {
     if (!q.trim()) return;
+    openDrawer();
     say('u', q);
     try {
       const r = await api(`/api/sme/${TID}/copilot`, { method: 'POST', body: { message: q } });
@@ -271,6 +293,75 @@
   }
   $('#ask').onsubmit = (e) => { e.preventDefault(); const q = $('#q').value; $('#q').value = ''; ask(q); };
   document.querySelector('.chips').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) ask(b.dataset.q); };
+
+  // ---------- Cockpit: roles, runway, lanes, guardrails ----------
+  async function loadRoles() {
+    try {
+      const { accounts } = await api('/api/auth/demo-accounts');
+      const slug = TID.split('_')[1];
+      const mine = accounts.filter((a) => a.key.startsWith('sme-') && (a.email.split('@')[0].split('.')[1] || '') === slug);
+      const order = { owner: 0, accountant: 1, accounts: 1, viewer: 2 };
+      mine.sort((a, b) => (order[a.email.split('.')[0]] ?? 9) - (order[b.email.split('.')[0]] ?? 9));
+      if (mine.length < 2) { $('#roles').hidden = true; return; }
+      const label = (a) => ({ owner: 'Owner', accounts: 'Accountant', accountant: 'Accountant', viewer: 'Viewer' }[a.email.split('.')[0]] || a.name);
+      $('#roles').innerHTML = `<span class="muted">View as</span>${mine.map((a) => `<button class="${label(a).toLowerCase() === ME.sme_role ? 'on' : ''}" data-k="${esc(a.key)}">${esc(label(a))}</button>`).join('')}<span class="role-ag" title="The autopilot acts as its own identity. It can propose and pay under a signed mandate, never approve.">Autopilot agent: proposes, never approves</span>`;
+      $('#roles').hidden = false;
+      $('#roles').onclick = async (e) => {
+        const b = e.target.closest('button[data-k]'); if (!b || b.classList.contains('on')) return;
+        await api('/api/auth/demo-login', { method: 'POST', body: { key: b.dataset.k } });
+        toast(`Now viewing as ${b.textContent}`); boot();
+      };
+    } catch { $('#roles').hidden = true; }
+  }
+
+  const KIND = { held_back: 'Held back', injection: 'Injection', denied: 'Denied' };
+  async function loadCockpit() {
+    const c = await api(`/api/sme/${TID}/cockpit`);
+    const r = c.runway; const p = r.plan;
+    const breach = r.lowest_unmitigated.low < r.safety_buffer;
+    const fixed = !p.still_breaches_on;
+    const queued = p.reminders || p.borrow_amount;
+    $('#heroTitle').textContent = !breach ? `Cash stays above your ${inr(r.safety_buffer)} buffer` : queued ? (fixed ? `Approve ${p.reminders + (p.borrow_amount ? 1 : 0)} actions and the cash gap closes` : 'The plan helps, but cash still dips below the buffer') : `Cash dips below your buffer on ${r.first_breach}`;
+    const step = (cls, label, val, sub) => `<div class="rw ${cls}"><div class="l">${label}</div><div class="v">${val}</div><div class="s">${sub}</div></div>`;
+    $('#runway').innerHTML = step('', 'Cash today', inr(r.cash_today), `as of ${esc(c.as_of)}`)
+      + '<div class="arrow">→</div>'
+      + step(breach ? 'bad' : 'good', 'Lowest point if nothing changes', inr(r.lowest_unmitigated.low), `${esc(r.lowest_unmitigated.date)} · buffer ${inr(r.safety_buffer)}`)
+      + '<div class="arrow">→</div>'
+      + step('plan', 'Plan waiting for you', queued ? [p.reminders ? `${p.reminders} reminder${p.reminders > 1 ? 's' : ''}` : '', p.borrow_amount ? `${inr(p.borrow_amount)} loan` : ''].filter(Boolean).join(' + ') : (breach ? 'Nothing queued yet' : 'Nothing needed'), queued ? 'each needs your approval' : (breach ? 'press “Plan my cash gap”' : 'autopilot keeps watching'))
+      + '<div class="arrow">→</div>'
+      + step(queued ? (fixed ? 'good' : 'warn') : 'muted', 'Lowest point if you approve', queued ? inr(p.lowest_after.low) : '—', queued ? (fixed ? 'stays above the buffer' : `still below buffer on ${esc(p.still_breaches_on)}`) : '');
+    const ap = c.autopilot;
+    $('#apPill').hidden = false; $('#apPill').className = `appill ${ap.paused ? 'paused' : 'on'}`;
+    $('#apPill').textContent = ap.paused ? 'Autopilot paused' : 'Autopilot on';
+    $('#laneMandate').innerHTML = c.lanes.paid_by_mandate.length ? c.lanes.paid_by_mandate.map((a) => `<div class="card good"><div class="t">${esc(a.summary)}</div><div class="muted">${esc(a.mandate_id)} · receipt ${esc(a.receipt || '')}</div></div>`).join('')
+      : '<div class="muted empty">Nothing paid on its own yet. The agent can only pay a supplier you signed a mandate for, within its limits.</div>';
+    $('#laneBlocked').innerHTML = c.lanes.blocked.length ? c.lanes.blocked.map((b, i) => `<div class="card bad"><div class="t"><span class="kind">${KIND[b.kind] || 'Blocked'}</span> ${esc(b.title)}${b.amount ? ` · ${inr(b.amount)}` : ''}</div>${b.why_not?.[0] ? `<div class="muted">${esc(b.why_not[0].rule)}: ${esc(b.why_not[0].title)}</div><button class="linkish" data-bw="${i}">Why not?</button>` : ''}${b.seq ? `<div class="muted">audit #${b.seq} · ${esc(b.actor_role)}</div>` : ''}</div>`).join('')
+      : '<div class="muted empty">Nothing blocked. Try the attack button in the copilot.</div>';
+    $('#laneBlocked').onclick = (e) => { const b = e.target.closest('[data-bw]'); if (b) showWhy(c.lanes.blocked[Number(b.dataset.bw)].why_not); };
+    const g = c.guardrails;
+    $('#guard').innerHTML = `<span class="g-x"><b>${esc(ME.tenant_name)}</b></span>`
+      + (g.audit ? `<span class="${g.audit.valid ? 'ok' : 'badc'}">Audit chain ${g.audit.valid ? `valid · ${g.audit.entries} entries · head ${esc(g.audit.head)}…` : `BROKEN at #${g.audit.broken_at_seq}`}</span>` : '<span class="muted">Audit hidden for viewers</span>')
+      + `<span class="ok g-x">Numeric firewall armed</span><span class="ok g-x">Injection guard armed</span><span class="muted g-x">Planner: ${g.planner === 'deterministic' ? 'deterministic' : 'LLM + grounding check'}</span>`
+      + (g.audit ? '<button class="ghost" id="drill">Run tamper drill</button>' : '');
+    const d = $('#drill'); if (d) d.onclick = tamperDrill;
+  }
+
+  async function tamperDrill() {
+    try {
+      const r = await api(`/api/sme/${TID}/audit/tamper-drill`, { method: 'POST' });
+      if (!r.ran) return toast('Nothing in the audit chain yet');
+      const e = r.edit;
+      showWhy([{ rule: 'Hash-chained audit trail', title: `Edit caught at entry #${r.tampered_copy.broken_at_seq}`, detail: `We changed ${e.field} on entry #${r.edited_seq} from ${e.from} to ${e.to} in a copy of the chain. Its hash no longer matches (stored ${r.stored_hash_prefix}…, recomputed ${r.recomputed_hash_prefix}…), so verification fails right there.`, fix: `The live chain was not touched and is still ${r.live_chain.valid ? 'valid' : 'BROKEN'} (${r.live_chain.entries} entries).` }], null, 'Tamper drill');
+      loadAudit();
+    } catch (err) { refuse(err); }
+  }
+
+  function openDrawer() { $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false'); document.body.classList.add('drawer-open'); }
+  function closeDrawer() { $('#drawer').classList.remove('open'); $('#drawer').setAttribute('aria-hidden', 'true'); document.body.classList.remove('drawer-open'); }
+  $('#fab').onclick = () => ($('#drawer').classList.contains('open') ? closeDrawer() : openDrawer());
+  $('#drawerClose').onclick = closeDrawer;
+  $('#phoneClose').onclick = () => { $('#phone').hidden = true; };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
   boot();
 })();

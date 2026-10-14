@@ -45,8 +45,7 @@ function list(tenantId, limit = 200) {
   return (chains.get(tenantId) || []).slice(-limit);
 }
 
-function verify(tenantId) {
-  const chain = chains.get(tenantId) || [];
+function verifyEntries(chain) {
   let prev = GENESIS;
   for (const e of chain) {
     const { hash, ...body } = e;
@@ -57,6 +56,29 @@ function verify(tenantId) {
   }
   return { valid: true, entries: chain.length, head: prev };
 }
+function verify(tenantId) { return verifyEntries(chains.get(tenantId) || []); }
+
+// Tamper drill: edit one amount in a COPY of the chain and re-verify it.
+// The live chain is never modified, so the drill itself is safe to run on stage.
+function tamperDrill(tenantId) {
+  const chain = chains.get(tenantId) || [];
+  if (!chain.length) return { ran: false, reason: 'empty_chain' };
+  const idx = Math.max(0, chain.findIndex((e) => e.metadata && Number(e.metadata.amount) > 0));
+  const target = chain[idx];
+  const before = target.metadata && Number(target.metadata.amount) > 0 ? Number(target.metadata.amount) : null;
+  const copy = chain.map((e) => ({ ...e, metadata: JSON.parse(JSON.stringify(e.metadata)) }));
+  if (before !== null) copy[idx].metadata.amount = before + 1; else copy[idx].action = `${copy[idx].action}.edited`;
+  const tampered = verifyEntries(copy);
+  return {
+    ran: true,
+    edited_seq: target.seq,
+    edit: before !== null ? { field: 'metadata.amount', from: before, to: before + 1 } : { field: 'action', from: target.action, to: copy[idx].action },
+    tampered_copy: tampered,
+    recomputed_hash_prefix: sha(target.prev_hash + canonical((({ hash, ...b }) => b)(copy[idx]))).slice(0, 16),
+    stored_hash_prefix: target.hash.slice(0, 16),
+    live_chain: verify(tenantId),
+  };
+}
 
 function _tamperForTests(tenantId, seq, patch) {
   const chain = chains.get(tenantId);
@@ -64,4 +86,4 @@ function _tamperForTests(tenantId, seq, patch) {
 }
 function resetForTests() { chains.clear(); }
 
-module.exports = { append, list, verify, resetForTests, _tamperForTests };
+module.exports = { append, list, verify, tamperDrill, resetForTests, _tamperForTests };

@@ -6,8 +6,8 @@
 
 **FinTechathon 2026 · International Track · Topic E: SME Finance Copilot · Team GateKeepers**
 
-[![Tests](https://img.shields.io/badge/tests-44%20suites%20passing-2ea44f)](#-tests)
-[![SME tests](https://img.shields.io/badge/SME%20tests-68-2ea44f)](backend/tests)
+[![Tests](https://img.shields.io/badge/tests-45%20suites%20passing-2ea44f)](#-tests)
+[![SME tests](https://img.shields.io/badge/SME%20tests-78-2ea44f)](backend/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Data](https://img.shields.io/badge/data-synthetic%20sandbox%20only-6f42c1)](docs/sandbox-evidence/SUMMARY.md)
 [![Security](https://img.shields.io/badge/security-self--assessed-0969da)](docs/SECURITY_SELF_ASSESSMENT.md)
@@ -19,7 +19,7 @@
 [Agentic layer](docs/AGENTIC_COPILOT.md) ·
 [Deck and PDFs (Drive)](https://drive.google.com/drive/folders/1sksHP-oYGp0sC7nAqAZzvl535y9GnbHF)
 
-<img src="docs/screenshots/sme-agent-plan.jpg" alt="OneGate SME: the autopilot brief and an 8-step agent plan (forecast, debtors, three reminders, financing match, loan application, what-if simulation) with READ / SUGGEST / EXECUTE tiers" width="900">
+<img src="docs/screenshots/sme-cockpit.jpg" alt="OneGate SME treasury cockpit: the cash runway for the next 45 days (cash today, the low point if nothing changes, the plan waiting for the owner, the low point if they approve), the autopilot morning brief, and the guardrail strip (audit chain, numeric firewall, injection guard, tamper drill)" width="900">
 
 </div>
 
@@ -65,6 +65,7 @@ Most finance copilots answer questions. OneGate SME **acts**, and every act is b
 4. **GST-aware cash planning for India.** GST is the one outflow an SME can't move. The agent puts each GSTR-3B (the 20th, monthly filers) on the cash calendar and splits it into output tax and input tax credit. It flags credit at risk: since s.16(2)(aa) CGST Act, credit only counts if the supplier's invoice is in your GSTR-2B. Ananya's ₹25,248 of credit from Om Logistics is at risk, which would raise the 20 Oct payment. It also checks coverage (covered, tight or short) and the cost of paying late: 18% a year (s.50) plus ₹50 a day (s.47), capped by turnover. A café at 5% without ITC is modelled correctly.
 5. **"Why not?" cards: explainable refusals.** Every denial, escalation and block carries the rule, the limit, the real number and a fix. For example: *"Paying ₹4,15,800 early pulls cash below the ₹4,12,000 safety buffer on 2026-10-14. What you can do: pay on the normal due date instead."* Ask the copilot *"why not?"* and it explains the last refusal straight from the audit chain.
 6. **Share the score, not the books.** Lenders get banded features, a ledger commitment and an Account-Aggregator-style consent artefact, never the ledger itself.
+7. **A treasury cockpit, not a chat window (v1.4).** The dashboard opens on what the agent already did. A runway strip shows cash today, the low point if nothing changes, the plan waiting for the owner and the low point if they approve it (Ananya: -₹2,29,598 to ₹4,58,364). Below it, the work sits in three lanes: **paid under a mandate**, **waiting for you**, and **blocked by policy**, where every card has a why-not. A role switcher shows separation of duties live: the accountant sees *Approve · owner only*, and the viewer sees no actions. One-time codes go to a simulated **owner's phone**, never onto the approval card. The chat moves to a side drawer. A guardrail strip shows the audit chain, the firewalls and a **tamper drill**: it edits one amount in a copy of the chain and shows verification failing at that exact entry, while the live chain stays valid.
 
 ## What OneGate SME does
 
@@ -128,17 +129,17 @@ On the sign-in screen pick a demo user (development mode only, see [`DEMO_ACCESS
 |---|---|---|
 | `owner.ananya@company.com` | owner | Press **Plan my cash gap**, then approve a payment with the amount and the one-time code |
 | `accounts.ananya@company.com` | accountant | Propose a payment, then see that you can't approve it |
-| `viewer.pixelforge@company.com` | viewer | Read-only: every action button is gone |
+| `viewer.ananya@company.com` · `viewer.pixelforge@company.com` | viewer | Read-only: every action button is gone |
 | `owner.chai@company.com` | owner | Sign a mandate for FreshFarm Dairy, press **Run autopilot now** and watch it pay the bill on its own and queue two early-pay discounts. Other tenants' data is refused |
 
 Then press **Try an attack** in the copilot chat.
 
 ### Demo script (about 3 minutes)
 
-1. **(0:00)** Sign in as the Ananya owner. The autopilot brief already says *"Cash gap of ₹6,41,598 ahead. I've built a plan."*
-2. **(0:20)** Press **Plan my cash gap**. Watch 8 tool calls run: forecast, debtors, three reminders, financing, loan application, simulation. The low point goes from -₹2,29,598 to ₹4,58,364.
-3. **(1:00)** In Approvals, approve the loan application: press Approve, type the one-time code (shown as a sandbox SMS). Its receipt carries a consent artefact and shows what the lender saw.
-4. **(1:30)** Press **Try an attack**. It's blocked before any model runs and logged in the audit chain.
+1. **(0:00)** Sign in as the Ananya owner. The cockpit opens on the runway: the low point if nothing changes is -₹2,29,598, and the autopilot brief already says *"Cash gap of ₹6,41,598 ahead. I've built a plan."*
+2. **(0:20)** Press **Plan my cash gap** (expand *How the agent planned it* to see the 8 tool calls). The runway's last box shows ₹4,58,364 if you approve, and four cards wait in **Waiting for you**.
+3. **(0:50)** Switch **View as → Accountant**: the same cards show *Approve · owner only*. Switch back to Owner and approve the loan application. The code arrives on the **owner's phone**, not on the card.
+4. **(1:20)** Open **Ask copilot** and press **Try an attack**. It's blocked before any model runs, and it shows up in **Blocked by policy** with its audit number. Press **Run tamper drill**: the edited copy fails at that exact entry, and the live chain stays valid.
 5. **(1:50)** Switch to Chai Point. Sign a mandate for FreshFarm Dairy (code again), press **Run autopilot now**: it pays the ₹22,400 bill on its own, queues two early-pay discounts (52.67% and 30.88% a year, ₹1,235 saved) and shows the GST due on the 20th is covered.
 6. **(2:20)** Back on Ananya, the same autopilot **holds back** both discounts. Press **Why not?** in *Supplier discounts & GST*: paying early would breach the buffer. Note the ₹25,248 of GST credit at risk.
 7. **(2:45)** Revoke the mandate, pause the autopilot, show the audit chain is valid.
@@ -147,10 +148,10 @@ Then press **Try an attack** in the copilot chat.
 
 ```bash
 cd backend
-node tests/run-all-tests.js   # 44 suites, including 68 SME tests
+node tests/run-all-tests.js   # 45 suites, including 78 SME tests
 ```
 
-SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, audit chain), `sme-02-api` (tenancy, tiers, approvals with step-up codes, limits over HTTP), `sme-03-secret-hygiene` (no keys or passwords in the tree), `sme-04-agent` (multi-step planner, LLM tool-calling guardrails with a scripted model: grounding fallback, refused tools, injection blocked before the model, API failure; step-up codes; mandates; autopilot escalation, no double payment, kill switch; lender data minimisation), `sme-05-innovation` (discount maths, idle-cash vs loan hurdle, buffer refusal, offers checked together, early payment end-to-end with amount and code, forged-discount denial, role and tenant limits; GST calendar, credit at risk, no-ITC restaurant, covered/tight/short, late-cost caps; why-not cards on every API refusal, in the brief, the chat and the LLM path, with the grounding check catching an invented saving).
+SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, audit chain), `sme-02-api` (tenancy, tiers, approvals with step-up codes, limits over HTTP), `sme-03-secret-hygiene` (no keys or passwords in the tree), `sme-04-agent` (multi-step planner, LLM tool-calling guardrails with a scripted model: grounding fallback, refused tools, injection blocked before the model, API failure; step-up codes; mandates; autopilot escalation, no double payment, kill switch; lender data minimisation), `sme-05-innovation` (discount maths, idle-cash vs loan hurdle, buffer refusal, offers checked together, early payment end-to-end with amount and code, forged-discount denial, role and tenant limits; GST calendar, credit at risk, no-ITC restaurant, covered/tight/short, late-cost caps; why-not cards on every API refusal, in the brief, the chat and the LLM path, with the grounding check catching an invented saving), `sme-06-cockpit` (the runway matches the planner's own simulation, the cockpit is read-only, the blocked lane links denials to audit entries with why-not cards, viewers see no audit data, the mandate lane lists only mandate payments, tenant scoping, the tamper drill catches the edited entry while the live chain stays valid, role-switcher accounts, codes never printed on cards).
 
 ## API
 
@@ -170,6 +171,8 @@ SME suites: `sme-01-core` (forecast, receivables, financing, policy, guards, aud
 | `GET` | `/api/sme/:tid/privacy/lender-share` | SUGGEST |
 | `GET` | `/api/sme/:tid/gst` | READ: GSTR-3B calendar, credit at risk, coverage, late cost |
 | `GET` · `POST` | `/api/sme/:tid/discounts` · `/discounts/:billId/propose` | READ · queues an EXECUTE approval card (or 409 with why-not) |
+| `GET` | `/api/sme/:tid/cockpit` | READ: runway before and after the waiting plan, three action lanes, guardrail status (no side effects) |
+| `POST` | `/api/sme/:tid/audit/tamper-drill` | owner or accountant: edits a copy of the chain and shows where verification fails; the live chain is untouched |
 | `GET` | `/api/sme/:tid/explain?codes=…` | plain-language why-not cards for reason codes |
 | `POST` | `/api/sme/:tid/actions` | EXECUTE (propose) |
 | `POST` | `/api/sme/:tid/actions/:id/approve` · `/reject` | owner only |
@@ -221,7 +224,7 @@ In-memory state, a static membership table, rule-based injection detection, sand
 OneGate/
 ├── backend/
 │   ├── sme/             # SME Finance Copilot (this submission)
-│   ├── tests/           # 44 suites, sme-01..05 are the SME ones
+│   ├── tests/           # 45 suites, sme-01..06 are the SME ones
 │   ├── auth/ routes/ services/ ml/   # OneGate platform core (auth, audit, sessions)
 │   └── server.js
 ├── frontend/
