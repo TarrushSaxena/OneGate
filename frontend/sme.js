@@ -54,7 +54,8 @@
     $('#phone').hidden = true; $('#sms').innerHTML = '<div class="muted">Codes for payments, loans and mandates arrive here, not on the approval card.</div>';
     loadRoles();
     $('#logout').onclick = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); showLogin(); };
-    $('#chat').innerHTML = ''; $('#trace').innerHTML = '';
+    $('#chat').innerHTML = ''; $('#trace').innerHTML = ''; WI = null;
+    ['#wiDelay', '#wiSales', '#wiSup', '#wiOne'].forEach((id) => { $(id).value = 0; }); $('#wiOut').className = 'wi-out muted'; $('#wiOut').textContent = 'Move a slider to see how low cash would go.'; $('#wiReset').hidden = true;
     say('a', `Hi! I'm the OneGate copilot for ${ME.tenant_name}. I can read your books and draft things on my own. Anything that moves money or contacts customers waits for the owner's approval.`);
     await Promise.all([loadCockpit(), loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts()]);
   }
@@ -72,25 +73,73 @@
     $('#kpis').innerHTML = k.map(([l, v, s, c]) => `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
   }
 
+  let FC = null; let WI = null;
   async function loadForecast() {
-    const f = await api(`/api/sme/${TID}/forecast?horizon=90`);
+    FC = await api(`/api/sme/${TID}/forecast?horizon=90`);
+    const f = FC; const c = f.calibration;
     $('#fcMeta').textContent = `as of ${f.as_of} · backtest MAPE ${f.backtest.mape_pct}% (30d)`;
+    if (c) {
+      const b30 = c.buckets[1];
+      const bias = b30.median_error;
+      $('#calNote').innerHTML = `The shaded outline is where the balance actually landed ${c.target_coverage_pct}% of the time when we re-ran this forecast from ${c.origins} past start dates (${b30.n} checks at 16 to 30 days). `
+        + (bias < 0 ? `In those runs the base case ran high: at 16 to 30 days the typical miss was ${inr(-bias)} too optimistic. ` : '')
+        + `At 30 days the scenario low is ${inr(c.day30.scenario_low)} and the calibrated low is ${inr(c.day30.calibrated_low)}${c.day30.policy_is_more_cautious ? ', so the buffer checks are already the more cautious of the two.' : '. Safety checks still use the scenario low.'}`;
+    }
+    drawChart();
+    $('#alerts').innerHTML = f.alerts.map((a) => `<div class="alert ${a.severity === 'critical' ? 'critical' : ''}">⚠ ${esc(a.message)}</div>`).join('') || '<div class="muted" style="margin-top:8px">No buffer breach expected in the next 90 days.</div>';
+  }
+  function drawChart() {
+    const f = FC; if (!f) return;
     const W = 720, H = 240, P = 28, s = f.series;
-    const vals = s.flatMap((p) => [p.low, p.high]).concat([f.safety_buffer, f.starting_balance, 0]);
+    const wi = WI && WI.series;
+    const vals = s.flatMap((p) => [p.low, p.high, p.cal_low ?? p.low, p.cal_high ?? p.high]).concat([f.safety_buffer, f.starting_balance, 0], wi ? wi.map((p) => p.low) : []);
     const min = Math.min(...vals), max = Math.max(...vals);
     const x = (i) => P + (i / (s.length - 1)) * (W - 2 * P);
     const y = (v) => H - P - ((v - min) / (max - min || 1)) * (H - 2 * P);
-    const band = s.map((p, i) => `${x(i)},${y(p.high)}`).join(' ') + ' ' + s.map((p, i) => `${x(s.length - 1 - i)},${y(s[s.length - 1 - i].low)}`).join(' ');
+    const poly = (hi, lo) => s.map((p, i) => `${x(i)},${y(p[hi])}`).join(' ') + ' ' + s.map((p, i) => `${x(s.length - 1 - i)},${y(s[s.length - 1 - i][lo])}`).join(' ');
     const base = s.map((p, i) => `${x(i)},${y(p.base)}`).join(' ');
     const ticks = [0, 29, 59, 89].map((i) => `<text x="${x(i)}" y="${H - 8}" fill="#8d9bc4" font-size="10" text-anchor="middle">${s[i].date.slice(5)}</text>`).join('');
+    const cal = s[0].cal_low !== undefined ? `<polygon points="${poly('cal_high', 'cal_low')}" fill="rgba(180,140,255,.07)" stroke="rgba(180,140,255,.7)" stroke-dasharray="3 3" stroke-width="1"/>` : '';
+    const wiLine = wi ? `<polyline points="${wi.map((p, i) => `${x(i)},${y(p.low)}`).join(' ')}" fill="none" stroke="#ff5d6c" stroke-width="2" stroke-dasharray="6 3"/>` : '';
     $('#chart').innerHTML = `
-      <polygon points="${band}" fill="rgba(91,140,255,.18)" stroke="rgba(91,140,255,.5)" stroke-width="1"/>
+      <polygon points="${poly('high', 'low')}" fill="rgba(91,140,255,.18)" stroke="rgba(91,140,255,.5)" stroke-width="1"/>${cal}
       <line x1="${P}" x2="${W - P}" y1="${y(f.safety_buffer)}" y2="${y(f.safety_buffer)}" stroke="#f5b041" stroke-dasharray="5 4"/>
       ${min < 0 ? `<line x1="${P}" x2="${W - P}" y1="${y(0)}" y2="${y(0)}" stroke="#ff5d6c" stroke-width=".8"/>` : ''}
-      <polyline points="${base}" fill="none" stroke="#5b8cff" stroke-width="2.2"/>
+      <polyline points="${base}" fill="none" stroke="#5b8cff" stroke-width="2.2"/>${wiLine}
       <text x="${P}" y="16" fill="#8d9bc4" font-size="10">${inr(max)}</text><text x="${P}" y="${H - P - 4}" fill="#8d9bc4" font-size="10">${inr(min)}</text>${ticks}`;
-    $('#alerts').innerHTML = f.alerts.map((a) => `<div class="alert ${a.severity === 'critical' ? 'critical' : ''}">⚠ ${esc(a.message)}</div>`).join('') || '<div class="muted" style="margin-top:8px">No buffer breach expected in the next 90 days.</div>';
+    $('#wiLeg').hidden = $('#wiLegT').hidden = !wi;
   }
+
+  // ---------- What-if stress test ----------
+  let wiTimer = null;
+  function wiInputs() {
+    return { debtor_delay_days: Number($('#wiDelay').value), sales_change_pct: Number($('#wiSales').value), supplier_cost_change_pct: Number($('#wiSup').value), one_off_expense: Number($('#wiOne').value), top_debtors: 3, one_off_in_days: 7 };
+  }
+  function wiLabels(v) {
+    $('#wiDelayV').textContent = `${v.debtor_delay_days} days`;
+    $('#wiSalesV').textContent = `${v.sales_change_pct > 0 ? '+' : ''}${v.sales_change_pct}%`;
+    $('#wiSupV').textContent = `${v.supplier_cost_change_pct > 0 ? '+' : ''}${v.supplier_cost_change_pct}%`;
+    $('#wiOneV').textContent = inr(v.one_off_expense);
+  }
+  async function runWhatIf() {
+    const v = wiInputs(); wiLabels(v);
+    const idle = !v.debtor_delay_days && !v.sales_change_pct && !v.supplier_cost_change_pct && !v.one_off_expense;
+    $('#wiReset').hidden = idle;
+    if (idle) { WI = null; drawChart(); $('#wiOut').className = 'wi-out muted'; $('#wiOut').textContent = 'Move a slider to see how low cash would go.'; return; }
+    try {
+      WI = await api(`/api/sme/${TID}/whatif`, { method: 'POST', body: v });
+      drawChart();
+      const a = WI.after; const b = WI.before; const fin = WI.cheapest_financing;
+      const breaks = !!a.first_breach;
+      $('#wiOut').className = `wi-out ${breaks ? 'bad' : 'good'}`;
+      $('#wiOut').innerHTML = `Lowest point in 45 days: <b>${inr(a.lowest.low)}</b> on ${esc(a.lowest.date)} (now ${inr(b.lowest.low)}, ${WI.change_in_low < 0 ? 'down' : 'up'} ${inr(Math.abs(WI.change_in_low))}).`
+        + (WI.delayed_customers.length ? ` Delayed: ${esc(WI.delayed_customers.join(', '))}.` : '')
+        + (breaks ? ` Cash breaks the ${inr(WI.safety_buffer)} buffer on ${esc(a.first_breach)}. You'd need about <b>${inr(WI.cash_needed_to_hold_buffer)}</b>${fin && !fin.none_eligible ? `; the cheapest eligible option is ${esc(fin.lender)} at ${fin.apr_pct}% APR (about ${inr(fin.est_total_cost)} in cost, ${fin.disbursal_days} days to fund).` : '; no eligible financing covers it.'}` : ` It stays above the ${inr(WI.safety_buffer)} buffer.`)
+        + ' <span class="muted">Nothing is queued.</span>';
+    } catch (err) { refuse(err); }
+  }
+  ['#wiDelay', '#wiSales', '#wiSup', '#wiOne'].forEach((id) => { $(id).oninput = () => { wiLabels(wiInputs()); clearTimeout(wiTimer); wiTimer = setTimeout(runWhatIf, 180); }; });
+  $('#wiReset').onclick = () => { ['#wiDelay', '#wiSales', '#wiSup', '#wiOne'].forEach((id) => { $(id).value = 0; }); runWhatIf(); };
 
   async function loadReceivables() {
     const r = await api(`/api/sme/${TID}/receivables`);
