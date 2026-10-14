@@ -37,7 +37,7 @@ function planFromPending(tenant, pend) {
   if (loan) {
     borrow = Number(loan.params.amount) || 0;
     try {
-      const m = matchFinancing(tenant, { amount: borrow, urgency_days: 30 });
+      const m = matchFinancing(tenant, { amount: borrow, urgency_days: 30, receivables: receivables(tenant) });
       const p = m.options.find((o) => o.product_id === loan.params.product_id);
       if (p && p.disbursal_days) days = p.disbursal_days;
     } catch (_) { /* keep default */ }
