@@ -144,7 +144,33 @@ UI changes: a role switcher (owner, accountant and viewer for Ananya) makes sepa
 
 **Tamper drill** (`POST /audit/tamper-drill`, owner or accountant): copies the tenant's chain, adds ₹1 to one amount in the copy, and re-verifies. Verification fails at exactly that entry because its recomputed hash no longer matches the stored one. The live chain is never modified, and the drill itself is audited.
 
-## 11. Threat model additions for an acting agent
+## 11. Forecast bands from past errors and the what-if stress test (`calibrate.js`, `whatif.js`)
+
+**Calibration.** The forecaster is re-run from every 3rd day between day 90 of the history (it needs 90 days of lookback) and 15 days before the sandbox date: 26 start dates and up to 45 days ahead each. The error at each horizon (actual minus base case) is collected in three buckets (1 to 15, 16 to 30 and 31 to 45 days). The band uses the finite-sample conformal quantiles at 10% and 90% (the ceil((n+1)q)-th error). Beyond 45 days the last band is widened by sqrt(h/45). On the calibration windows it covers 80.2% (Ananya), 79.8% (Chai Point) and 80.0% (PixelForge) of outcomes. Limits: the windows overlap, so the errors are correlated, and this is one business's history, so it is an empirical band, not a guarantee.
+
+**What it found.** The errors are mostly negative at 16 to 45 days, so the base case runs optimistic. The main cause is collections: on a 40-day backtest the model expected ₹26.2 lakh of receipts for Ananya against ₹12.0 lakh actual, and ₹1.0 lakh against ₹0.59 lakh for Chai Point. The dashboard says so. The safety checks (mandates, early payments, the planner) still use the scenario low, and the cockpit reports whether that is more cautious than the calibrated low (it is for PixelForge, not for Ananya or Chai Point at 30 days). Fixing the collections model is the next forecasting task. It will change the headline numbers, so it is left as a team decision.
+
+**What-if.** `POST /whatif` re-runs the same forecaster with adjustments: the top N debtors pay D days later, sales change by X%, supplier costs change by Y%, and a one-off expense lands on a day. Inputs are clamped. It returns the low point before and after, the first buffer breach, the cash needed to hold the buffer, and the cheapest eligible financing for that amount. It writes nothing to the audit chain or the queue (tested).
+
+## 12. India rules pack (`india.js`)
+
+- **s.43B(h), Income-tax Act.** A buyer can deduct a payment to a Udyam-registered micro or small enterprise (a manufacturer or service provider; traders are excluded) only in the year it actually pays, if it pays after the MSMED Act s.15 limit (15 days, or up to 45 with a written agreement). It is a timing penalty for the buyer. Sandbox registrations: Ananya is a small trader (not covered), Chai Point is not registered, and PixelForge is a micro service firm with a 45-day agreement (covered). Reminders for PixelForge invoices past the limit add one sentence saying exactly this.
+- **TDS on receipts.** PixelForge's buyers deduct 10% under s.194J on the value before GST (CBDT Circular 23/2017), so receivables show cash in after TDS and reminders ask for Form 16A. Some buyers may use s.194C (2%) instead; the section is a per-business setting.
+- **Statutory calendar.** TDS deposit on the 7th (30 April for March), GSTR-1 on the 11th, PF and ESIC on the 15th, GSTR-3B on the 20th with the planner's amount and coverage status, and advance tax on 15 June, September, December and March, each with the consequence of paying late.
+- **Key Facts Statement.** Each product gets an RBI-format KFS: the all-in APR solved as the yearly rate that equates the amount received after fees with the instalments, the processing fee, penal charges (never compounded), the cooling-off period, the regulated entity, the grievance officer, direct-to-borrower disbursal and a SHA-256 hash. A loan action carries its KFS, and approval needs `kfs_ack` equal to that hash, checked before the one-time code is spent. A product that disburses through a third party is denied at proposal. Inside the cooling-off window the owner can exit (`POST /actions/:id/cooling-off-exit`), repaying principal plus interest for the days used, with no penalty.
+- **Disputes.** `POST /disputes` (owner or accountant, audited) marks an invoice or bill disputed. A disputed invoice drops out of the chase list, the planner and the forecast, and a reminder for it is refused. A disputed bill can't be paid, not even under a mandate.
+
+## 13. Red-team runner and guard hardening (`redteam.js`, `guard.js`)
+
+The input guard now checks several versions of each text: the text as written, the text with lookalike Cyrillic and Greek letters folded to Latin, a leetspeak-folded version, and decoded base64 and percent-encoded payloads. It adds patterns for claimed approval ("the owner already approved this"), role-play, Hinglish and Hindi (Devanagari). Normal owner questions in English and Hinglish stay unflagged (tested).
+
+A **structuring check** refuses a payment to a payee when payments to that payee that aren't tied to a real open bill would exceed the ₹5,00,000 single-payment limit within 72 hours, or when there would be three or more of them. Payments that each settle a real bill are unaffected.
+
+`POST /redteam` (owner or accountant) runs 21 attacks through the real modules and reports the layer that caught each one: the input guard, the untrusted-text guard, the payment-scam guard, the policy engine, the structuring check, discount integrity, separation of duties, step-up code and binding, the numeric grounding firewall, the tool registry, and the hash-chained audit. Anything an attack queued is rejected again, the run is audited, and it reports whether any money moved (none does; tested).
+
+**Live LLM evidence.** `node sme/scripts/live-llm-check.js` with `SME_LLM_API_KEY`, `SME_LLM_BASE_URL` and `SME_LLM_MODEL` runs seven prompts against a real OpenAI-compatible model: five tasks, one trap asking for a number no tool returns, and one Hinglish attack. It writes `docs/sandbox-evidence/live-llm.jsonl` and `live-llm.md`, including whether the firewall catches an invented amount appended to each live answer. The key is read from the environment only.
+
+## 14. Threat model additions for an acting agent
 
 | Threat | Control | Test |
 |---|---|---|
@@ -159,7 +185,7 @@ UI changes: a role switcher (owner, accountant and viewer for Ananya) makes sepa
 | Agent drains cash chasing discounts | Hurdle rate + joint cash-buffer check across all offers | `sme-05` buffer and joint-offer tests |
 | Opaque refusals push owners to bypass the tool | Why-not card on every refusal | `sme-05` why-not tests |
 
-## 12. Try it
+## 15. Try it
 
 ```bash
 cd backend && npm install && npm run provision:demo && npm start

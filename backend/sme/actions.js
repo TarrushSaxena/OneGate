@@ -34,6 +34,20 @@ function forecastAfterPayment(tenant, amount, billId) {
   return breach ? { breach: true, date: breach.date } : { breach: false };
 }
 
+const SPLIT_WINDOW_MS = 72 * 3600 * 1000;
+function splitCheck(tenantId, tenant, params) {
+  const billed = (p) => p.bill_id && tenant.payables.some((b) => b.id === p.bill_id);
+  if (billed(params)) return null;
+  const since = Date.now() - SPLIT_WINDOW_MS;
+  const recent = [...pending.values(), ...executed]
+    .filter((a) => a.tenant_id === tenantId && a.type === 'schedule_payment' && a.params.beneficiary_id === params.beneficiary_id && ['pending_approval', 'executed'].includes(a.status) && Date.parse(a.created_at) >= since && !billed(a.params));
+  const ids = new Set(); const uniq = recent.filter((a) => (ids.has(a.id) ? false : ids.add(a.id)));
+  const total = uniq.reduce((s, a) => s + Number(a.params.amount), 0) + Number(params.amount);
+  if (uniq.length && total > policy.LIMITS.per_payment_max) return `possible_split_payment_${Math.round(total)}`;
+  if (uniq.length >= 2) return 'too_many_unbilled_payments_to_one_payee';
+  return null;
+}
+
 function summarize(type, params, tenant) {
   if (type === 'schedule_payment') {
     const ben = tenant.beneficiaries.find((b) => b.id === params.beneficiary_id);
@@ -54,6 +68,12 @@ function propose({ tenantId, actor, type, params = {}, idempotencyKey, source = 
   const ctx = { sme_role: actor.sme_role, params, tenant, paidToday: paidToday(tenantId) };
   if (type === 'schedule_payment' && Number(params.amount) > 0) ctx.forecastAfter = forecastAfterPayment(tenant, Number(params.amount), params.bill_id);
   let verdict = policy.evaluate(type, ctx);
+  // Structuring check: payments to one payee that aren't tied to a real open bill
+  // can't be split to slip under the single-payment limit.
+  if (verdict.decision !== 'deny' && type === 'schedule_payment') {
+    const split = splitCheck(tenantId, tenant, params);
+    if (split) verdict = { decision: 'deny', tier: verdict.tier, reasons: [split] };
+  }
   // An early payment must be exactly the bill minus the supplier's offered discount.
   if (verdict.decision !== 'deny' && type === 'schedule_payment' && params.early_pay && !require('./discounting').validEarlyPay(tenant, params)) {
     verdict = { decision: 'deny', tier: verdict.tier, reasons: ['discount_terms_mismatch'] };

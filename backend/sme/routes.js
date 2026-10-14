@@ -224,6 +224,12 @@ router.post('/:tid/audit/tamper-drill', (req, res) => {
   res.json(r);
 });
 
+// Red-team runner: real attacks against the real guards; anything queued is rejected again.
+router.post('/:tid/redteam', (req, res) => {
+  if (req.sme.sme_role === 'viewer') return res.status(403).json(withWhy({ error: 'policy_denied', reasons: ['role_viewer_lacks_redteam'] }));
+  res.json(require('./redteam').run(req.sme.tenant_id, req.smeActor));
+});
+
 // Cockpit: one read-only summary for the treasury view (no side effects).
 router.get('/:tid/cockpit', gate('view_overview'), (req, res) => res.json(require('./cockpit').cockpit(req.tenant, req.sme)));
 
