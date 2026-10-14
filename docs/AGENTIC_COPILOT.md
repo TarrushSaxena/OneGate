@@ -22,7 +22,7 @@ The first version of OneGate SME answered questions and proposed one action at a
 | 7 | `propose_loan_application` | EXECUTE (queued) | Queues the cheapest eligible application for approval |
 | 8 | `simulate_plan` | READ | Re-runs the forecast with expected collections and the loan applied, and reports the low point before and after |
 
-**Result on Ananya Textiles (sandbox, 12 Oct 2026):** gap ₹6,41,598 (first breach 21 Oct); three reminders worth about ₹2,87,962 expected; ₹4,00,000 TReDS invoice discounting at 9.4% APR (est. total cost ₹7,283, 3-day disbursal); the low point moves from **-₹2,29,598 to ₹4,58,364** and stays above the ₹4,12,000 buffer.
+**Result on Ananya Textiles (sandbox, 12 Oct 2026):** gap ₹11,74,344 (first breach 21 Oct, low point 24 Nov); three reminders worth about ₹2,87,962 expected; ₹9,00,000 TReDS invoice discounting at 9.4% APR (est. total cost ₹16,387, 3-day disbursal); the low point moves from **-₹7,62,344 to ₹4,25,618** and stays above the ₹4,12,000 buffer.
 
 **Planning assumptions** are returned with every plan so the owner can challenge them: a reminder recovers 60% of the probability-weighted invoice value within 7 days; at most 3 reminders per plan; financing rounded up to ₹50,000. Loan repayments after the horizon are not yet modelled in the simulation.
 
@@ -146,9 +146,23 @@ UI changes: a role switcher (owner, accountant and viewer for Ananya) makes sepa
 
 ## 11. Forecast bands from past errors and the what-if stress test (`calibrate.js`, `whatif.js`)
 
-**Calibration.** The forecaster is re-run from every 3rd day between day 90 of the history (it needs 90 days of lookback) and 15 days before the sandbox date: 26 start dates and up to 45 days ahead each. The error at each horizon (actual minus base case) is collected in three buckets (1 to 15, 16 to 30 and 31 to 45 days). The band uses the finite-sample conformal quantiles at 10% and 90% (the ceil((n+1)q)-th error). Beyond 45 days the last band is widened by sqrt(h/45). On the calibration windows it covers 80.2% (Ananya), 79.8% (Chai Point) and 80.0% (PixelForge) of outcomes. Limits: the windows overlap, so the errors are correlated, and this is one business's history, so it is an empirical band, not a guarantee.
+**Calibration.** The forecaster is re-run from every 3rd day between day 90 of the history (it needs 90 days of lookback) and 15 days before the sandbox date: 26 start dates and up to 45 days ahead each. The error at each horizon (actual minus base case) is collected in three buckets (1 to 15, 16 to 30 and 31 to 45 days). The band uses the finite-sample conformal quantiles at 10% and 90% (the ceil((n+1)q)-th error). Beyond 45 days the last band is widened by sqrt(h/45). On the calibration windows it covers 80.0% of outcomes for each SME (1,005 checks each). Limits: the windows overlap, so the errors are correlated, and this is one business's history, so it is an empirical band, not a guarantee.
 
-**What it found.** The errors are mostly negative at 16 to 45 days, so the base case runs optimistic. The main cause is collections: on a 40-day backtest the model expected ₹26.2 lakh of receipts for Ananya against ₹12.0 lakh actual, and ₹1.0 lakh against ₹0.59 lakh for Chai Point. The dashboard says so. The safety checks (mandates, early payments, the planner) still use the scenario low, and the cockpit reports whether that is more cautious than the calibrated low (it is for PixelForge, not for Ananya or Chai Point at 30 days). Fixing the collections model is the next forecasting task. It will change the headline numbers, so it is left as a team decision.
+**What it found, and the v1.8 fix.** In v1.5 the errors were mostly negative at 16 to 45 days, so the base case ran optimistic. On a 40-day backtest the model expected ₹26.2 lakh of receipts for Ananya against ₹12.0 lakh actual. The main cause was the run-rate for invoices not yet issued: it ramped in from day 1, but in this history no invoice is paid sooner than about 25 to 38 days after issue. Three changes:
+
+1. Collections from new invoices start only at the business's 25th-percentile issue-to-payment time and reach the full run-rate at the 75th (`collectionLag`).
+2. An invoice already past its customer's usual pay date loses half its probability about every 7 days (was every 14), and what remains is spread over 2 to 6 weeks (was 1 to 3).
+3. The day-of-week sales shape is scaled to the last 28 days' level, so the seasonal trend isn't averaged away.
+
+| SME | 30-day MAPE before → after | Median 31 to 45-day error before → after |
+|---|---|---|
+| Ananya | 26% → 14.82% | -₹11,55,897 → -₹2,72,294 |
+| Chai Point | 3.93% → 3.63% | -₹1,40,910 → -₹42,121 |
+| PixelForge | 7.89% → 8.68% | -₹3,10,415 → -₹52,591 |
+
+On a 40-day backtest, Ananya's expected receipts went from ₹26.2 lakh to ₹16.1 lakh, against ₹12.0 lakh actual. PixelForge's MAPE is slightly worse, but its bias is far smaller.
+
+**Safety floor.** Every forecast now sets the pessimistic line to the lower of the scenario low and the calibrated band (`low_uses_calibrated_floor`, with the original kept as `scenario_low`), so mandates, early payments, buffer alerts and the planner all use the more cautious of the two. The calibration runs and the walk-forward backtest use the raw model. The headline changed: Ananya's gap is now ₹11,74,344, the plan borrows ₹9,00,000, and the low point moves from -₹7,62,344 to ₹4,25,618. Chai Point's and PixelForge's mandate payments and early-pay discounts are unchanged.
 
 **What-if.** `POST /whatif` re-runs the same forecaster with adjustments: the top N debtors pay D days later, sales change by X%, supplier costs change by Y%, and a one-off expense lands on a day. Inputs are clamped. It returns the low point before and after, the first buffer breach, the cash needed to hold the buffer, and the cheapest eligible financing for that amount. It writes nothing to the audit chain or the queue (tested).
 

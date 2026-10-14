@@ -82,8 +82,8 @@
       const b30 = c.buckets[1];
       const bias = b30.median_error;
       $('#calNote').innerHTML = `The shaded outline is where the balance actually landed ${c.target_coverage_pct}% of the time when we re-ran this forecast from ${c.origins} past start dates (${b30.n} checks at 16 to 30 days). `
-        + (bias < 0 ? `In those runs the base case ran high: at 16 to 30 days the typical miss was ${inr(-bias)} too optimistic. ` : '')
-        + `At 30 days the scenario low is ${inr(c.day30.scenario_low)} and the calibrated low is ${inr(c.day30.calibrated_low)}${c.day30.policy_is_more_cautious ? ', so the buffer checks are already the more cautious of the two.' : '. Safety checks still use the scenario low.'}`;
+        + `At 16 to 30 days the typical miss is ${inr(Math.abs(bias))} ${bias < 0 ? 'too optimistic' : 'too cautious'}. `
+        + `Every safety check (mandates, early payments, the planner) uses the lower of the scenario low and this band: at 30 days that is ${inr(c.day30.safety_low ?? Math.min(c.day30.scenario_low, c.day30.calibrated_low))}.`;
     }
     drawChart();
     $('#alerts').innerHTML = f.alerts.map((a) => `<div class="alert ${a.severity === 'critical' ? 'critical' : ''}">⚠ ${esc(a.message)}</div>`).join('') || '<div class="muted" style="margin-top:8px">No buffer breach expected in the next 90 days.</div>';

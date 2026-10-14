@@ -35,7 +35,7 @@ function calibrate(tenant) {
   let origins = 0;
   for (let o = endMs - 15 * DAY; o >= firstMs; o -= STEP_DAYS * DAY) {
     const maxH = Math.min(45, Math.round((endMs - o) / DAY));
-    const f = forecast(tenant, { horizon: maxH, asOf: iso(o) });
+    const f = forecast(tenant, { horizon: maxH, asOf: iso(o), raw: true });
     origins += 1;
     f.series.forEach((p, i) => {
       const h = i + 1;
@@ -73,7 +73,7 @@ function withCalibratedBand(tenant, f) {
     calibration: {
       ...cal,
       lowest_cal_low_45d: { date: minCal.date, low: minCal.cal_low },
-      day30: { scenario_low: Math.round(h30.low), calibrated_low: h30.cal_low, policy_is_more_cautious: h30.low <= h30.cal_low },
+      day30: { scenario_low: Math.round(h30.scenario_low ?? h30.low), calibrated_low: h30.cal_low, safety_low: Math.round(h30.low), policy_is_more_cautious: h30.low <= h30.cal_low },
     },
   };
 }
@@ -86,7 +86,7 @@ function empiricalCoverage(tenant) {
   let inside = 0; let n = 0;
   for (let o = endMs - 15 * DAY; o >= firstMs; o -= STEP_DAYS * DAY) {
     const maxH = Math.min(45, Math.round((endMs - o) / DAY));
-    forecast(tenant, { horizon: maxH, asOf: iso(o) }).series.forEach((p, i) => {
+    forecast(tenant, { horizon: maxH, asOf: iso(o), raw: true }).series.forEach((p, i) => {
       const b = bandFor(cal, i + 1);
       const a = balanceAt(tenant.transactions, toMs(p.date), tenant.profile.opening_balance);
       n += 1; if (a >= p.base + b.q_low && a <= p.base + b.q_high) inside += 1;
