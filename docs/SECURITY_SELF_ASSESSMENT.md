@@ -93,7 +93,7 @@ Limits and the allowlist are **re-checked at approval time**, not only when the 
 
 | Risk | How OneGate handles it | Proof |
 |---|---|---|
-| LLM01 Prompt injection (direct) | Injection detector on every chat message, after normalising obfuscation (NFKC, zero-width chars, s-p-a-c-e-d letters). Blocked messages are refused and audited. **Even if a message is missed, it cannot move money** (section 6). | `sme-01` guard and defence-in-depth tests; `sme-02` "copilot blocks prompt injection and audits it" |
+| LLM01 Prompt injection (direct) | Injection detector on every chat message, after normalising obfuscation (NFKC, zero-width chars, s-p-a-c-e-d letters, lookalike Cyrillic and Greek letters, leetspeak, decoded base64 and percent-encoding), with Hinglish, Hindi and claimed-approval patterns. The red-team runner (`POST /redteam`) fires 21 attacks at the live guards; all are blocked. Blocked messages are refused and audited. **Even if a message is missed, it cannot move money** (section 6). | `sme-01` guard and defence-in-depth tests; `sme-02` "copilot blocks prompt injection and audits it"; `sme-09` 10 obfuscated variants, no false positives, red-team 21/21 |
 | LLM01 Prompt injection (indirect) | Invoice and counterparty notes are treated as data. Flagged notes are withheld from the copilot and the user is warned. | `sme-01` "flags the planted injection note"; `sme-02` "ignores injected invoice notes" |
 | LLM02 Sensitive information disclosure | No secrets in the copilot's context. PII redaction before audit. Masked account numbers. | `sme-01` redaction test |
 | LLM05 Improper output handling | Dashboard HTML-escapes every value it renders, model output included | code review: `esc()` in `sme.js` |

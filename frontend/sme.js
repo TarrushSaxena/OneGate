@@ -411,8 +411,9 @@
     $('#guard').innerHTML = `<span class="g-x"><b>${esc(ME.tenant_name)}</b></span>`
       + (g.audit ? `<span class="${g.audit.valid ? 'ok' : 'badc'}">Audit chain ${g.audit.valid ? `valid · ${g.audit.entries} entries · head ${esc(g.audit.head)}…` : `BROKEN at #${g.audit.broken_at_seq}`}</span>` : '<span class="muted">Audit hidden for viewers</span>')
       + `<span class="ok g-x">Numeric firewall armed</span><span class="ok g-x">Injection guard armed</span><span class="muted g-x">Planner: ${g.planner === 'deterministic' ? 'deterministic' : 'LLM + grounding check'}</span>`
-      + (g.audit ? '<button class="ghost" id="drill">Run tamper drill</button>' : '');
+      + (g.audit ? '<span class="gbtns"><button class="ghost" id="redteam">Run red-team</button><button class="ghost" id="drill">Run tamper drill</button></span>' : '');
     const d = $('#drill'); if (d) d.onclick = tamperDrill;
+    const rt = $('#redteam'); if (rt) rt.onclick = runRedTeam;
   }
 
   async function tamperDrill() {
@@ -425,12 +426,26 @@
     } catch (err) { refuse(err); }
   }
 
+  async function runRedTeam() {
+    const btn = $('#redteam'); if (btn) { btn.disabled = true; btn.textContent = 'Attacking…'; }
+    try {
+      const r = await api(`/api/sme/${TID}/redteam`, { method: 'POST' });
+      document.querySelectorAll('.rtmodal').forEach((x) => x.remove());
+      const m = document.createElement('div'); m.className = 'rtmodal'; m.setAttribute('role', 'dialog');
+      m.innerHTML = `<div class="rt-in"><div class="rt-h"><div><b>Red-team: ${r.blocked} of ${r.attacks} attacks blocked</b><div class="muted">${r.money_moved ? 'Money moved during the run' : 'No money moved'} · audit chain ${r.audit_chain_valid ? 'still valid' : 'BROKEN'} (${r.audit_entries} entries) · ${r.ms} ms · anything queued was rejected again</div></div><button class="ghost" id="rtClose">✕</button></div>
+        <div class="rt-list">${r.results.map((x) => `<div class="rt ${x.blocked ? 'ok' : 'fail'}"><span class="rt-s">${x.blocked ? 'BLOCKED' : 'PASSED'}</span><div><div><b>${esc(x.name)}</b> <span class="muted">· ${esc(x.group)}</span></div>${x.payload ? `<code>${esc(x.payload)}</code>` : ''}<div class="muted">${esc(x.caught_by || '')}${x.detail ? ` · ${esc(x.detail)}` : ''}</div></div></div>`).join('')}</div></div>`;
+      document.body.appendChild(m);
+      $('#rtClose').onclick = () => m.remove(); m.onclick = (e) => { if (e.target === m) m.remove(); };
+    } catch (err) { refuse(err); }
+    loadAudit(); loadApprovals();
+  }
+
   function openDrawer() { $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false'); document.body.classList.add('drawer-open'); }
   function closeDrawer() { $('#drawer').classList.remove('open'); $('#drawer').setAttribute('aria-hidden', 'true'); document.body.classList.remove('drawer-open'); }
   $('#fab').onclick = () => ($('#drawer').classList.contains('open') ? closeDrawer() : openDrawer());
   $('#drawerClose').onclick = closeDrawer;
   $('#phoneClose').onclick = () => { $('#phone').hidden = true; };
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDrawer(); document.querySelectorAll('.rtmodal').forEach((x) => x.remove()); } });
 
   boot();
 })();

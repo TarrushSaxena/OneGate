@@ -114,6 +114,15 @@ select{background:#0e1630;color:var(--text);border:1px solid var(--line);border-
 /* v1.6 India rules pack */
 .tag2{display:inline-block;margin-top:3px;margin-right:4px;font-size:11px;padding:1px 6px;border-radius:5px;background:rgba(91,140,255,.12);color:#a9c0ff}.tag2.b{background:rgba(245,176,65,.12);color:var(--warn)}
 .nowrap{white-space:nowrap}
-.comp{list-style:none;margin:0;padding:0;max-height:420px;overflow:auto}.comp li{display:grid;grid-template-columns:52px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.comp .cd{font-weight:600;color:var(--acc)}.comp .late{color:#c9a86a}
+.comp{list-style:none;margin:0 0 8px;padding:0;max-height:560px;overflow:auto}.comp li{display:grid;grid-template-columns:52px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.comp .cd{font-weight:600;color:var(--acc)}.comp .late{color:#c9a86a}
 .kfs summary{cursor:pointer;color:var(--acc);font-size:12px;margin-top:6px}.kfsdl{font-size:12px;margin:6px 0}.kfsack{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:6px;color:var(--text)}.kfsack input{width:auto}
 .tag2{white-space:nowrap}
+/* v1.7 red-team */
+.gbtns{margin-left:auto;display:flex;gap:6px}.guard .gbtns button{margin-left:0}
+.rtmodal{position:fixed;inset:0;background:rgba(3,6,15,.7);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+.rt-in{background:#0f1630;border:1px solid var(--line);border-radius:14px;width:min(860px,100%);max-height:88vh;display:flex;flex-direction:column}
+.rt-h{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}.rt-h b{font-size:16px}
+.rt-list{overflow:auto;padding:8px 16px 16px}.rt{display:grid;grid-template-columns:78px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.rt code{display:block;font-size:11px;color:#c8d3f5;background:#0b1124;padding:4px 6px;border-radius:6px;margin:4px 0;overflow-wrap:anywhere}
+.rt-s{font-size:11px;font-weight:700;letter-spacing:.04em;align-self:start;text-align:center;padding:3px 0;border-radius:6px}.rt.ok .rt-s{background:rgba(46,204,143,.15);color:var(--good)}.rt.fail .rt-s{background:rgba(255,93,108,.2);color:var(--bad)}
+@media(max-width:600px){.gbtns button{padding:4px 8px}#drill{display:none}}

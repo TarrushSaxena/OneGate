@@ -12,7 +12,37 @@ const INJECTION_PATTERNS = [
   /(?:ignore|disregard|override|forget|bypass)\b.{0,30}\b(?:instructions?|guidance|guidelines|rules?|polic(?:y|ies)|guardrails?|safety|approvals?)\b/i,
   /\b(?:transfer|send|wire|pay|move)\b.{0,15}\b(?:everything|all\s+(?:of\s+)?(?:it|the\s+money|my\s+money|funds|cash))\b/i,
   /\b(?:system|developer)\s*(?:prompt|message|mode)\b|\bjailbreak\b|\bdan\s+mode\b/i,
+  // Social engineering: claimed approval or role-play to skip the owner.
+  /\b(?:owner|ceo|boss|admin|director|malik)\b.{0,25}\b(?:already|has|have)\b.{0,12}\b(?:approved|authori[sz]ed|okayed|signed\s+off|said\s+(?:ok|yes))\b/i,
+  /\b(?:pretend|imagine|role\s*-?\s*play|act\s+like)\b.{0,40}\b(?:owner|admin|approved?|no\s+(?:rules|limits))\b/i,
+  // Hinglish (romanised Hindi).
+  /\b(?:pichle|pichhle|purane|saare|sare|sabhi|upar\s+ke)\b.{0,25}\b(?:instructions?|niyam|rules?|nirdesh|baatein)\b.{0,25}\b(?:bhool|bhul|ignore|nazarandaz|chhod|chod)/i,
+  /\b(?:poora|pura|poore|pure|saara|sara|saare|sare|sab|sabhi)\b.{0,20}\b(?:balance|paisa|paise|amount|funds?|rakam)\b.{0,40}\b(?:transfer|bhej|bhejo|daal|dalo|daalo|kar\s*do|nikal)/i,
+  /\bbina\b.{0,20}\b(?:approval|permission|puche|pooche|poochhe|otp|code)\b.{0,25}\b(?:pay|bhej|bhejo|transfer|kar)/i,
+  // Hindi (Devanagari).
+  /(?:निर्देश|नियम|निर्देशों).{0,25}(?:भूल|अनदेखा|नज़रअंदाज़|नजरअंदाज)/,
+  /(?:पूरा|पूरे|सारा|सारे|सब).{0,20}(?:बैलेंस|पैसा|पैसे|राशि|रकम).{0,40}(?:ट्रांसफर|भेज|डाल)/,
 ];
+
+// Lookalike letters from other scripts and leetspeak, folded to plain Latin for matching only.
+const HOMOGLYPHS = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'һ': 'h', 'ӏ': 'l', 'ո': 'n', 'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T', 'Х': 'X', 'α': 'a', 'ο': 'o', 'ε': 'e', 'ι': 'i', 'ν': 'v', 'τ': 't', 'Ι': 'I', 'Ο': 'O', 'І': 'I', 'Ј': 'J', 'Ѕ': 'S', 'Ԁ': 'D', 'Һ': 'H', 'Ү': 'Y', 'ү': 'y', 'Ѵ': 'V', 'ѵ': 'v', 'ԛ': 'q', 'ԝ': 'w', 'Ԝ': 'W', 'Ζ': 'Z', 'Β': 'B', 'Ε': 'E', 'Η': 'H', 'Κ': 'K', 'Μ': 'M', 'Ν': 'N', 'Ρ': 'P', 'Τ': 'T', 'Χ': 'X', 'Υ': 'Y' };
+const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's' };
+const foldHomoglyphs = (t) => t.replace(/[\u0370-\u03FF\u0400-\u04FF\u0500-\u052F\u0530-\u058F]/g, (c) => HOMOGLYPHS[c] || c);
+const foldLeet = (t) => t.replace(/[a-z][0-9@$]+[a-z]|[0-9@$][a-z]{2,}|[a-z]{2,}[0-9@$]/gi, (w) => w.replace(/[0-9@$]/g, (c) => LEET[c] || c));
+
+/** Decode hidden payloads (base64, %-encoding) so they are checked too. */
+function decodeHidden(t) {
+  const extra = [];
+  for (const m of t.match(/[A-Za-z0-9+/]{16,}={0,2}/g) || []) {
+    try {
+      const d = Buffer.from(m, 'base64').toString('utf8');
+      const printable = d.replace(/[^\x20-\x7E\u0900-\u097F]/g, '').length / Math.max(1, d.length);
+      if (d.length >= 12 && printable > 0.9) extra.push(d);
+    } catch (_) { /* not base64 */ }
+  }
+  if (/%[0-9A-Fa-f]{2}/.test(t)) { try { extra.push(decodeURIComponent(t)); } catch (_) { /* malformed */ } }
+  return extra;
+}
 
 /** Undo common obfuscation before matching: zero-width chars, homoglyph digits, s p a c e d letters. */
 function normalize(text) {
@@ -37,14 +67,24 @@ const PII_PATTERNS = [
   { re: /(?:\+91[ -]?)?\b[6-9]\d{9}\b/g, tag: '[PHONE]' },
 ];
 
+function variants(text) {
+  const base = normalize(text);
+  const out = [base, foldHomoglyphs(base)];
+  out.push(foldLeet(out[1]));
+  for (const d of decodeHidden(String(text || ''))) { const n = normalize(d); out.push(n, foldLeet(foldHomoglyphs(n))); }
+  return out;
+}
+
 function detectInjection(text) {
-  const t = normalize(text);
-  const hit = INJECTION_PATTERNS.find((re) => re.test(t));
-  return hit ? { flagged: true, reason: 'prompt_injection' } : { flagged: false };
+  const vs = variants(text);
+  for (const [i, t] of vs.entries()) {
+    if (INJECTION_PATTERNS.some((re) => re.test(t))) return { flagged: true, reason: 'prompt_injection', via: i === 0 ? 'plain' : i <= 2 ? 'deobfuscated' : 'decoded_payload' };
+  }
+  return { flagged: false };
 }
 
 function detectPhishing(text) {
-  const t = normalize(text);
+  const t = variants(text).join(' \n ');
   const reasons = PHISHING_PATTERNS.filter((p) => p.re.test(t)).map((p) => p.reason);
   const score = Math.min(100, reasons.length * 35 + (reasons.includes('bank_detail_change') ? 30 : 0));
   return { flagged: score >= 50, score, reasons };
@@ -66,4 +106,4 @@ function sanitizeUntrustedText(text) {
   return { text: redactPII(text), flagged: false };
 }
 
-module.exports = { normalize, detectInjection, detectPhishing, redactPII, sanitizeUntrustedText };
+module.exports = { variants, decodeHidden, normalize, detectInjection, detectPhishing, redactPII, sanitizeUntrustedText };
