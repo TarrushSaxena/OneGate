@@ -55,6 +55,9 @@
     loadRoles();
     $('#logout').onclick = async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {}); showLogin(); };
     $('#chat').innerHTML = ''; $('#trace').innerHTML = ''; WI = null;
+    // Financing form belongs to the business: reset it on every switch, so one business's amount never carries over.
+    $('#finAmt').value = $('#finAmt').defaultValue; $('#finDays').value = $('#finDays').defaultValue; $('#kfsBox').innerHTML = ''; window.__fin = null;
+    Object.keys(typed).forEach((k) => delete typed[k]); Object.keys(challenges).forEach((k) => delete challenges[k]); Object.keys(kfsTicked).forEach((k) => delete kfsTicked[k]);
     ['#wiDelay', '#wiSales', '#wiSup', '#wiOne'].forEach((id) => { $(id).value = 0; }); $('#wiOut').className = 'wi-out muted'; $('#wiOut').textContent = 'Move a slider to see how low cash would go.'; $('#wiReset').hidden = true;
     say('a', `Hi! I'm the OneGate copilot for ${ME.tenant_name}. I can read your books and draft things on my own. Anything that moves money or contacts customers waits for the owner's approval.`);
     await Promise.all([loadCockpit(), loadOverview(), loadForecast(), loadReceivables(), loadApprovals(), loadAudit(), runFin(), loadBrief(), loadMandates(), loadShare(), loadDiscounts(), loadCompliance()]);
@@ -160,6 +163,8 @@
 
   const challenges = {}; // action id -> step-up challenge
   const kfsTicked = {};   // action id -> owner ticked "I have read the KFS"
+  const typed = {};       // "c:<id>" / "o:<id>" -> what the owner typed (survives a re-render)
+  const typedVal = (k) => (typed[k] ? ` value="${esc(typed[k])}"` : '');
   document.addEventListener('change', (e) => { const k = e.target.closest && e.target.closest('[data-kfs]'); if (k) kfsTicked[k.dataset.kfs] = k.checked; });
   const kfsHtml = (k) => `<dl class="share kfsdl"><dt>Lender</dt><dd>${esc(k.regulated_entity)}</dd><dt>Amount</dt><dd>${inr(k.amount)} for ${k.tenure_months} months</dd><dt>Interest rate</dt><dd>${k.interest_rate_pct}%</dd><dt>Processing fee</dt><dd>${inr(k.processing_fee)}</dd><dt>All-in APR</dt><dd><b>${k.apr_all_in_pct}%</b></dd><dt>Instalment</dt><dd>${inr(k.instalment)}</dd><dt>Total repayable</dt><dd>${inr(k.total_repayable)}</dd><dt>You receive</dt><dd>${inr(k.net_disbursed)}, straight to your account</dd><dt>Penal charges</dt><dd>${esc(k.penal_charges)}</dd><dt>Cooling-off</dt><dd>${esc(k.cooling_off_rule)}</dd><dt>Grievances</dt><dd>${esc(k.grievance_officer)}</dd></dl><div class="muted">${esc(k.basis)} KFS ${esc(k.hash.slice(0, 12))}…</div>`;
   async function loadApprovals() {
@@ -176,13 +181,20 @@
       ${a.cooling_off_exit ? `<div class="muted">Exited in cooling-off: repay ${inr(a.cooling_off_exit.repay_principal)} + ${inr(a.cooling_off_exit.interest_for_days_used)} interest, no penalty.</div>` : ''}
       ${a.preview ? `<details><summary class="muted">Preview email</summary><pre class="muted" style="white-space:pre-wrap">${esc(a.preview.subject)}\n\n${esc(a.preview.body)}</pre></details>` : ''}
       ${a.receipt ? `<div class="muted">Receipt ${esc(a.receipt.reference)}${a.mandate_id ? ` · paid by autopilot under ${esc(a.mandate_id)}` : ''}</div>` : ''}
-      ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner’s phone. Enter it here.</div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
-        : `<div class="row">${a.type === 'schedule_payment' && !a.needs_step_up ? `<input placeholder="Re-type amount" data-c="${a.id}">` : ''}<button data-${a.needs_step_up ? 'su' : 'ap'}="${a.id}">Approve</button><button class="ghost" data-rj="${a.id}">Reject</button></div>`) : a.status === 'pending_approval' ? `<div class="row"><button disabled title="Separation of duties: only the owner can approve">Approve · owner only</button><span class="muted">${ME.sme_role === 'viewer' ? 'viewers can only look' : 'accountants can propose, not approve'}</span></div>` : ''}
+      ${a.status === 'pending_approval' && owner ? (chl ? `<div class="otp"><div class="muted">Code sent to the owner’s phone. Enter it here.</div><div class="row">${a.type === 'schedule_payment' ? `<input placeholder="Re-type amount" data-c="${a.id}"${typedVal(`c:${a.id}`)}>` : ''}<input placeholder="6-digit code" maxlength="6" data-o="${a.id}"${typedVal(`o:${a.id}`)}><button data-ap="${a.id}">Confirm</button><button class="ghost" data-rj="${a.id}">Reject</button></div></div>`
+        : `<div class="row">${a.type === 'schedule_payment' && !a.needs_step_up ? `<input placeholder="Re-type amount" data-c="${a.id}"${typedVal(`c:${a.id}`)}>` : ''}<button data-${a.needs_step_up ? 'su' : 'ap'}="${a.id}">Approve</button><button class="ghost" data-rj="${a.id}">Reject</button></div>`) : a.status === 'pending_approval' ? `<div class="row"><button disabled title="Separation of duties: only the owner can approve">Approve · owner only</button><span class="muted">${ME.sme_role === 'viewer' ? 'viewers can only look' : 'accountants can propose, not approve'}</span></div>` : ''}
       </div>`;
     }).join('') : '<div class="muted empty">Nothing waiting. Run “Plan my cash gap”, or ask the copilot to pay a bill or send a reminder.</div>';
     $('#laneWaitMeta').textContent = owner ? `${actions.filter((a) => a.status === 'pending_approval').length} to approve` : ME.sme_role === 'viewer' ? 'view only' : 'you propose, the owner approves';
+    // Remember what the owner types, so a re-render never wipes the amount or the code.
+    $('#approvals').oninput = (e) => { const t = e.target; if (t.dataset && t.dataset.c) typed[`c:${t.dataset.c}`] = t.value; if (t.dataset && t.dataset.o) typed[`o:${t.dataset.o}`] = t.value; };
     $('#approvals').onclick = async (e) => {
-      const su = e.target.closest('[data-su]'); const ap = e.target.closest('[data-ap]'); const rj = e.target.closest('[data-rj]'); const coe = e.target.closest('[data-coe]');
+      // Only real action buttons act and re-render. Clicks in an input, on
+      // "Preview email", the KFS summary or the card body must not reset the card.
+      const btn = e.target.closest('button');
+      if (!btn || btn.disabled) return;
+      const su = btn.matches('[data-su]') && btn; const ap = btn.matches('[data-ap]') && btn; const rj = btn.matches('[data-rj]') && btn; const coe = btn.matches('[data-coe]') && btn;
+      if (!su && !ap && !rj && !coe) return;
       if (coe) { try { await api(`/api/sme/${TID}/actions/${coe.dataset.coe}/cooling-off-exit`, { method: 'POST' }); toast('Loan exited in cooling-off, no penalty'); } catch (err) { refuse(err); } return loadApprovals(); }
       try {
         if (su) {
@@ -194,12 +206,12 @@
         if (ap) {
           const id = ap.dataset.ap; const c = $(`[data-c="${id}"]`); const o = $(`[data-o="${id}"]`); const k = $(`[data-kfs="${id}"]`);
           await api(`/api/sme/${TID}/actions/${id}/approve`, { method: 'POST', body: { kfs_ack: k && k.checked ? k.value : undefined, confirm_amount: c ? Number(c.value) : undefined, otp: challenges[id] ? { challenge_id: challenges[id].challenge_id, code: o ? o.value.trim() : '' } : undefined } });
-          delete challenges[id]; toast('Approved and executed in sandbox');
+          delete challenges[id]; delete typed[`c:${id}`]; delete typed[`o:${id}`]; toast('Approved and executed in sandbox');
         }
-        if (rj) { await api(`/api/sme/${TID}/actions/${rj.dataset.rj}/reject`, { method: 'POST', body: { reason: 'owner_rejected' } }); toast('Rejected'); }
+        if (rj) { delete typed[`c:${rj.dataset.rj}`]; delete typed[`o:${rj.dataset.rj}`]; await api(`/api/sme/${TID}/actions/${rj.dataset.rj}/reject`, { method: 'POST', body: { reason: 'owner_rejected' } }); toast('Rejected'); }
       } catch (err) {
         const m = { confirm_amount_mismatch: 'Amount does not match. Re-type the exact amount.', stepup_code_wrong: 'Wrong code. Try again.', stepup_locked: 'Too many wrong codes. Request a new one.', stepup_code_expired: 'Code expired. Request a new one.' }[err.message];
-        if (['stepup_locked', 'stepup_code_expired', 'stepup_code_already_used'].includes(err.message) && ap) delete challenges[ap.dataset.ap];
+        if (['stepup_locked', 'stepup_code_expired', 'stepup_code_already_used'].includes(err.message) && ap) { delete challenges[ap.dataset.ap]; delete typed[`o:${ap.dataset.ap}`]; }
         if (m) toast(m); else refuse(err, `Blocked: ${err.message}`);
       }
       loadApprovals(); loadAudit(); loadOverview(); loadDiscounts();
@@ -390,15 +402,23 @@
     const breach = r.lowest_unmitigated.low < r.safety_buffer;
     const fixed = !p.still_breaches_on;
     const queued = p.reminders || p.borrow_amount;
-    $('#heroTitle').textContent = !breach ? `Cash stays above your ${inr(r.safety_buffer)} buffer` : queued ? (fixed ? `Approve ${p.reminders + (p.borrow_amount ? 1 : 0)} actions and the cash gap closes` : 'The plan helps, but cash still dips below the buffer') : `Cash dips below your buffer on ${r.first_breach}`;
+    // Approved reminders / a submitted loan stay in the plan as "done"; only the rest is waiting.
+    const waiting = p.waiting ?? (p.reminders + (p.borrow_amount ? 1 : 0));
+    const done = (p.reminders_sent || 0) + (p.loan_status === 'submitted' ? 1 : 0);
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    $('#heroTitle').textContent = !breach ? `Cash stays above your ${inr(r.safety_buffer)} buffer`
+      : queued ? (fixed ? (waiting ? `Approve ${done ? `${plural(waiting, 'more action')}` : plural(waiting, 'action')} and the cash gap closes` : 'Plan approved: cash stays above the buffer') : 'The plan helps, but cash still dips below the buffer')
+      : `Cash dips below your buffer on ${r.first_breach}`;
+    const planVal = queued ? [p.reminders ? plural(p.reminders, 'reminder') : '', p.borrow_amount ? `${inr(p.borrow_amount)} loan` : ''].filter(Boolean).join(' + ') : (breach ? 'Nothing queued yet' : 'Nothing needed');
+    const planSub = queued ? (done ? `${done} done · ${waiting ? `${waiting} waiting for your approval` : 'nothing left to approve'}` : 'each needs your approval') : (breach ? 'press “Plan my cash gap”' : 'autopilot keeps watching');
     const step = (cls, label, val, sub) => `<div class="rw ${cls}"><div class="l">${label}</div><div class="v">${val}</div><div class="s">${sub}</div></div>`;
     $('#runway').innerHTML = step('', 'Cash today', inr(r.cash_today), `as of ${esc(c.as_of)}`)
       + '<div class="arrow">→</div>'
       + step(breach ? 'bad' : 'good', 'Lowest point if nothing changes', inr(r.lowest_unmitigated.low), `${esc(r.lowest_unmitigated.date)} · buffer ${inr(r.safety_buffer)}`)
       + '<div class="arrow">→</div>'
-      + step('plan', 'Plan waiting for you', queued ? [p.reminders ? `${p.reminders} reminder${p.reminders > 1 ? 's' : ''}` : '', p.borrow_amount ? `${inr(p.borrow_amount)} loan` : ''].filter(Boolean).join(' + ') : (breach ? 'Nothing queued yet' : 'Nothing needed'), queued ? 'each needs your approval' : (breach ? 'press “Plan my cash gap”' : 'autopilot keeps watching'))
+      + step('plan', done ? 'Your plan' : 'Plan waiting for you', planVal, planSub)
       + '<div class="arrow">→</div>'
-      + step(queued ? (fixed ? 'good' : 'warn') : 'muted', 'Lowest point if you approve', queued ? inr(p.lowest_after.low) : '—', queued ? (fixed ? 'stays above the buffer' : `still below buffer on ${esc(p.still_breaches_on)}`) : '');
+      + step(queued ? (fixed ? 'good' : 'warn') : 'muted', waiting || !queued ? 'Lowest point if you approve' : 'Lowest point with the plan', queued ? inr(p.lowest_after.low) : '—', queued ? (fixed ? 'stays above the buffer' : `still below buffer on ${esc(p.still_breaches_on)}`) : '');
     const ap = c.autopilot;
     $('#apPill').hidden = false; $('#apPill').className = `appill ${ap.paused ? 'paused' : 'on'}`;
     $('#apPill').textContent = ap.paused ? 'Autopilot paused' : 'Autopilot on';

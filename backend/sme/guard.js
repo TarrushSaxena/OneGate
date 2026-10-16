@@ -3,11 +3,21 @@
 // Treats all document / counterparty text as untrusted data.
 // ============================================================
 
+// A balance that belongs to a document (invoice, bill, PO, loan, EMI, GST/TDS challan) or is
+// qualified as "due/owed/outstanding" is normal finance language, not a request to drain the account.
+const DOC_WORDS = '(?:invoices?|bills?|inv\\b|inv-|po\\b|purchase\\s+orders?|orders?|loans?|emis?|gst|tds|challans?|vendors?|suppliers?|statements?|dues)';
+const BENIGN_BALANCE = `(?!\\s+(?:due|owed|outstanding|remaining|pending|payable)\\b)(?!\\s+(?:of|on|for|against|under)\\s+(?:the\\s+|this\\s+|that\\s+|our\\s+|my\\s+|their\\s+)?(?:[a-z0-9-]+\\s+){0,4}${DOC_WORDS})`;
+
 const INJECTION_PATTERNS = [
   /(?:ignore|disregard|override|forget)\s+(?:all\s+|any\s+)?(?:previous|prior|above|system|earlier)\s+(?:instructions?|prompts?|rules?)/i,
   /\byou\s+are\s+now\b|\bact\s+as\s+(?:an?\s+)?(?:admin|developer|system)\b/i,
   /\b(?:reveal|print|show|expose|leak)\b.{0,40}\b(?:system\s+prompt|api\s*key|password|secret|token)\b/i,
-  /\b(?:transfer|send|wire|pay|move)\b.{0,40}\b(?:full|entire|all|whole)\b.{0,20}\b(?:balance|funds|money)\b/i,
+  // "Move the whole balance / all the funds": blocked, but ordinary finance phrasing like
+  // "pay the full balance of invoice X" or "the full balance due on bill B-12" is allowed
+  // (it names a document, not the account balance). The next pattern still blocks any of
+  // these when they also name a destination account.
+  new RegExp(`\\b(?:transfer|send|wire|pay|move)\\b.{0,40}\\b(?:full|entire|all|whole)\\b.{0,20}\\b(?:funds|money|balance${BENIGN_BALANCE})\\b`, 'i'),
+  /\b(?:transfer|send|wire|pay|move)\b.{0,60}\b(?:full|entire|all|whole)\b.{0,40}\b(?:balance|funds|money)\b.{0,60}\bto\s+(?:me\b|myself\b|(?:a\s+|an\s+|the\s+|this\s+|that\s+|my\s+|our\s+|his\s+|her\s+)?(?:new\s+|different\s+|personal\s+|other\s+)?(?:account|a\/c|acct|upi|vpa|wallet|beneficiary|\d{6,}))/i,
   /\b(?:approve|execute|authori[sz]e)\b.{0,30}\bwithout\b.{0,20}\b(?:approval|confirmation|asking|owner)\b/i,
   /(?:ignore|disregard|override|forget|bypass)\b.{0,30}\b(?:instructions?|guidance|guidelines|rules?|polic(?:y|ies)|guardrails?|safety|approvals?)\b/i,
   /\b(?:transfer|send|wire|pay|move)\b.{0,15}\b(?:everything|all\s+(?:of\s+)?(?:it|the\s+money|my\s+money|funds|cash))\b/i,

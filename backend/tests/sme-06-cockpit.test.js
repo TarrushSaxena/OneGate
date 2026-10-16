@@ -146,3 +146,66 @@ test('dashboard: chat is a drawer, codes go to the phone, and the cockpit sectio
   assert.ok(!/sandbox SMS: \$\{/.test(js), 'one-time codes are no longer printed on the approval card');
   assert.ok(/sms\(/.test(js), 'codes are delivered to the phone panel');
 });
+
+// ---------- v1.8.1 demo fixes ----------
+const approve = (id) => actions.decide({ tenantId: A, actor: { id: 'o', sme_role: 'owner' }, actionId: id, approve: true });
+
+test('runway: approving a plan reminder keeps it in the plan as done, and the projected low does not fall', () => {
+  fresh();
+  agent.planCashGap({ tenantId: A, actor: { id: 'u1', sme_role: 'owner' } });
+  const before = cockpit(getTenant(A), OWNER_A).runway.plan;
+  assert.strictEqual(before.reminders, 3);
+  assert.strictEqual(before.reminders_sent, 0);
+  assert.strictEqual(before.lowest_after.low, 425618, 'v1.8 headline low point');
+  assert.strictEqual(before.still_breaches_on, null);
+  // Approve the biggest reminder (the one that made the low drop to about 2.6 lakh in the demo).
+  const rems = actions.list(A).filter((a) => a.type === 'send_reminder');
+  const biggest = rems.find((a) => a.params.invoice_id === 'INV-ANA-0020') || rems[0];
+  assert.ok(!approve(biggest.id).error);
+  const after = cockpit(getTenant(A), OWNER_A).runway.plan;
+  assert.strictEqual(after.reminders, 3, 'executed reminder still counts');
+  assert.strictEqual(after.reminders_sent, 1);
+  assert.strictEqual(after.reminders_waiting, 2);
+  assert.strictEqual(after.waiting, 3, '2 reminders + the loan still wait for the owner');
+  assert.strictEqual(after.lowest_after.low, before.lowest_after.low, 'low point after approval is unchanged');
+  assert.strictEqual(after.still_breaches_on, null);
+});
+
+test('runway: approving every plan action leaves nothing waiting and the low point where the plan said', () => {
+  fresh();
+  process.env.SME_STEPUP = 'off';
+  try {
+    agent.planCashGap({ tenantId: A, actor: { id: 'u1', sme_role: 'owner' } });
+    const want = cockpit(getTenant(A), OWNER_A).runway.plan.lowest_after.low;
+    for (const a of actions.list(A).filter((x) => x.status === 'pending_approval')) {
+      const r = actions.decide({ tenantId: A, actor: { id: 'o', sme_role: 'owner' }, actionId: a.id, approve: true, kfsAck: a.kfs && a.kfs.hash });
+      assert.ok(!r.error, `${a.type}: ${r.error}`);
+    }
+    const p = cockpit(getTenant(A), OWNER_A).runway.plan;
+    assert.strictEqual(p.waiting, 0);
+    assert.strictEqual(p.reminders_sent, 3);
+    assert.strictEqual(p.loan_status, 'submitted');
+    assert.strictEqual(p.borrow_amount, 900000);
+    assert.strictEqual(p.lowest_after.low, want);
+  } finally { delete process.env.SME_STEPUP; }
+});
+
+test('runway: a rejected reminder leaves the plan (only approved or waiting actions count)', () => {
+  fresh();
+  agent.planCashGap({ tenantId: A, actor: { id: 'u1', sme_role: 'owner' } });
+  const before = cockpit(getTenant(A), OWNER_A).runway.plan;
+  const r = actions.list(A).find((a) => a.type === 'send_reminder');
+  actions.decide({ tenantId: A, actor: { id: 'o', sme_role: 'owner' }, actionId: r.id, approve: false, reason: 'test' });
+  const after = cockpit(getTenant(A), OWNER_A).runway.plan;
+  assert.strictEqual(after.reminders, 2);
+  assert.ok(after.lowest_after.low < before.lowest_after.low, 'dropping a reminder lowers the projected low');
+});
+
+test('dashboard: approval card only re-renders on action buttons and keeps typed values; financing resets on business switch', () => {
+  const js = fs.readFileSync(path.join(__dirname, '../../frontend/sme.js'), 'utf8');
+  const handler = js.slice(js.indexOf("$('#approvals').onclick"), js.indexOf("$('#approvals').onclick") + 900);
+  assert.ok(/closest\('button'\)/.test(handler) && /if \(!su && !ap && !rj && !coe\) return;/.test(handler), 'clicks outside action buttons return early');
+  assert.ok(/\$\('#approvals'\)\.oninput/.test(js) && /typedVal\(`c:\$\{a\.id\}`\)/.test(js) && /typedVal\(`o:\$\{a\.id\}`\)/.test(js), 'typed amount and code survive a re-render');
+  const bootFn = js.slice(js.indexOf('async function boot()'), js.indexOf('async function runFin('));
+  assert.ok(/\$\('#finAmt'\)\.value = \$\('#finAmt'\)\.defaultValue/.test(bootFn), 'financing amount resets on business switch');
+});

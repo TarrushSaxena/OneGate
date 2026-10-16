@@ -30,9 +30,30 @@ const TITLES = {
   cross_tenant_access_denied: 'Tried to open another business',
 };
 
-function planFromPending(tenant, pend) {
-  const chase = pend.filter((a) => a.type === 'send_reminder').map((a) => a.params.invoice_id).filter(Boolean);
-  const loan = pend.find((a) => a.type === 'submit_loan_application');
+// The plan the runway shows = what is waiting for the owner PLUS what the
+// owner already approved whose cash has not landed yet. An approved reminder
+// or a submitted loan is "done or in progress", not gone: dropping it from
+// the plan (v1.8 bug) made the projected low fall after every approval.
+// Sandbox note: executing an action produces a receipt but does not post cash
+// to the ledger, so the forecast itself never contains these inflows twice.
+function inPlan(a) {
+  if (a.mandate_id) return false;
+  if (a.status === 'pending_approval') return true;
+  return a.status === 'executed' && (a.type === 'send_reminder' || a.type === 'submit_loan_application');
+}
+
+function planFromPending(tenant, pend, all) {
+  const acts = (all || pend).filter(inPlan);
+  const open = new Set((tenant.invoices || []).filter((i) => i.status === 'open').map((i) => i.id));
+  const chase = []; let remWaiting = 0; let remSent = 0;
+  for (const a of acts.filter((x) => x.type === 'send_reminder')) {
+    const id = a.params.invoice_id;
+    if (!id || chase.includes(id) || (open.size && !open.has(id))) continue;
+    chase.push(id);
+    if (a.status === 'executed') remSent += 1; else remWaiting += 1;
+  }
+  const loans = acts.filter((a) => a.type === 'submit_loan_application');
+  const loan = loans.find((a) => a.status === 'executed') || loans.find((a) => a.status === 'pending_approval');
   let borrow = 0; let days = 3;
   if (loan) {
     borrow = Number(loan.params.amount) || 0;
@@ -43,7 +64,12 @@ function planFromPending(tenant, pend) {
     } catch (_) { /* keep default */ }
   }
   const sim = agent.simulate(tenant, { chase_invoice_ids: chase, borrow_amount: borrow, borrow_disbursal_days: days, horizon_days: 45 });
-  return { chase_invoice_ids: chase, borrow_amount: borrow, borrow_disbursal_days: days, ...sim };
+  return {
+    chase_invoice_ids: chase, borrow_amount: borrow, borrow_disbursal_days: days,
+    reminders_waiting: remWaiting, reminders_sent: remSent,
+    loan_status: loan ? (loan.status === 'executed' ? 'submitted' : 'waiting') : null,
+    ...sim,
+  };
 }
 
 function blockedLane(tenant, canSeeAudit) {
@@ -73,7 +99,7 @@ function cockpit(tenant, sme) {
   const f = forecast(tenant, { horizon: 90 });
   const all = actions.list(tid);
   const pend = all.filter((a) => a.status === 'pending_approval');
-  const plan = planFromPending(tenant, pend);
+  const plan = planFromPending(tenant, pend, all);
   const ap = autopilot.status(tid);
   const canSeeAudit = sme.sme_role !== 'viewer';
   const firstBreach = f.series.slice(0, 45).find((p) => p.low < f.safety_buffer);
@@ -89,7 +115,11 @@ function cockpit(tenant, sme) {
       first_breach: firstBreach ? firstBreach.date : null,
       plan: {
         reminders: plan.chase_invoice_ids.length,
+        reminders_waiting: plan.reminders_waiting,
+        reminders_sent: plan.reminders_sent,
         borrow_amount: plan.borrow_amount,
+        loan_status: plan.loan_status,
+        waiting: plan.reminders_waiting + (plan.loan_status === 'waiting' ? 1 : 0),
         lowest_after: plan.lowest_after,
         still_breaches_on: plan.first_breach_after_plan,
         expected_inflows: plan.expected_inflows,
