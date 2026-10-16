@@ -12,6 +12,8 @@
 [![Data](https://img.shields.io/badge/data-synthetic%20sandbox%20only-6f42c1)](docs/sandbox-evidence/SUMMARY.md)
 [![Security](https://img.shields.io/badge/security-self--assessed-0969da)](docs/SECURITY_SELF_ASSESSMENT.md)
 
+**[▶ Watch the 4.5-min demo video](https://drive.google.com/file/d/1k9TLX-zRLWj-EsbKLIG_YcX9Gne9lPMM/view?usp=drivesdk)**
+
 [Submission index](docs/submission/SUBMISSION.md) ·
 [Technical docs](docs/TECHNICAL_DOCUMENTATION.md) ·
 [Security self-assessment](docs/SECURITY_SELF_ASSESSMENT.md) ·

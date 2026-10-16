@@ -8,7 +8,7 @@
 |---|---|---|
 | 1 | Technical documentation (architecture, core algorithms, security design) | [`docs/TECHNICAL_DOCUMENTATION.md`](../TECHNICAL_DOCUMENTATION.md) · PDF in the Drive folder |
 | 2 | Presentation deck (≤ 10 min) | [`PITCH_DECK.md`](PITCH_DECK.md) · PPTX and PDF in the Drive folder |
-| 3 | Demo video (optional, ≤ 5 min) | Not submitted. The live demo path is in the README and the deck. |
+| 3 | Demo video (optional, ≤ 5 min) | [OneGate SME demo, 4:34, v1.8](https://drive.google.com/file/d/1k9TLX-zRLWj-EsbKLIG_YcX9Gne9lPMM/view?usp=drivesdk) (Google Drive, anyone with the link) |
 | 4 | Source code with README, deployment instructions, test cases | This repository · [`README.md`](../../README.md) · `node backend/tests/run-all-tests.js` (48 suites, 128 SME tests) |
 | 5 | Security self-assessment (permission tiers, known risks) | [`docs/SECURITY_SELF_ASSESSMENT.md`](../SECURITY_SELF_ASSESSMENT.md) · PDF in the Drive folder |
 | 7 | **Supplementary (14 Oct): agentic layer v1.2** — multi-step planner, LLM tool-calling with grounding check, daily autopilot, spending mandates, step-up codes, privacy-preserving lender share | [`docs/AGENTIC_COPILOT.md`](../AGENTIC_COPILOT.md) · [`architecture.svg`](../architecture.svg) |
