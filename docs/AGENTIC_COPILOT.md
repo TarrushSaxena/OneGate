@@ -136,7 +136,7 @@ Every reason code the system produces (policy, mandates, step-up, discounts, gua
 
 The dashboard opens on what the agent did, not on a chat box. `GET /cockpit` is read-only (it writes nothing to the audit chain or the queue) and returns:
 
-- **Runway (next 45 days):** cash today, the low point if nothing changes, the plan waiting for the owner (reminders plus any loan application), and the low point if the owner approves it. The "after" figure comes from the same `simulate()` the planner uses, fed only with actions actually waiting in the queue, so it matches the planner's own output (tested).
+- **Runway (next 45 days):** cash today, the low point if nothing changes, the plan waiting for the owner (reminders plus any loan application), and the low point if the owner approves it. The "after" figure comes from the same `simulate()` the planner uses, fed with the plan's actions: those waiting in the queue plus reminders and loan applications the owner already approved whose cash hasn't landed (v1.8.1; before, an approved reminder dropped out and the low point fell). It matches the planner's own output before and after approvals (tested); rejected actions drop out.
 - **Three lanes:** *paid under a mandate* (executed actions that carry a mandate id and receipt), *waiting for you* (pending approvals), and *blocked by policy* (held-back early payments, invoice notes that tried to instruct the AI, and the latest audited denials, each with its audit sequence number and a why-not card). Viewers don't see audited denials or the chain.
 - **Guardrails:** audit-chain status and head hash, numeric firewall, injection guard, and whether the planner is deterministic or LLM with a grounding check.
 
