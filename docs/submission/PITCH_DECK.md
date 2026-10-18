@@ -1,20 +1,20 @@
-# OneGate SME: pitch deck (v1.8, 14 Oct 2026)
+# OneGate SME: pitch deck (v1.9, 18 Oct 2026)
 
-28 slides. Files: `OneGate_SME_Pitch_Deck.pptx` and `.pdf` in the submission Drive folder. Every number matches `docs/sandbox-evidence/SUMMARY.md`.
+28 slides. Files: `OneGate_SME_Pitch_Deck.pptx` (speaker notes included) and a text-searchable `.pdf` in the submission Drive folder. Every number matches `docs/sandbox-evidence/SUMMARY.md` (v1.9: repayments netted in the plan). The demo video was recorded at v1.8 and shows the older plan figures; see the README note.
 
-1. **OneGate SME**
+1. **OneGate SME** — A finance copilot that does the work and never spends without the owner
 2. **The problem**
 3. **Cash runs out first** — Small businesses run out of cash long before they run out of customers.
-4. **The gap in India** — 7.7 cr Udyam-registered MSMEs (Dec 2025); 47% Of them are credit-active; 24% Of credit demand unmet: ₹30 lakh crore
+4. **The gap in India** — 7.7 cr Udyam-registered MSMEs (TransUnion CIBIL, Dec 2025); 47% Of them are credit-active (same report); ~24% Credit gap of ₹30 lakh crore (SIDBI, 2025)
 5. **Three daily blockers** — Cash No forecast. The shortfall is a surprise.; Dues Chasing customers is awkward and always postponed.; Credit Mudra, OD, TReDS and NBFC lines differ in rules and cost.
 6. **One tap to approve** — A copilot that does the chores and asks before it spends a rupee.
 7. **What we built**
 8. **The cockpit** — It opens on what the agent already did, with the plan waiting for one tap.
-9. **The agent plans the fix** — Forecast Finds the low point of -₹7,62,344 on 24 Nov; Chase Queues reminders on the three best overdue invoices, about ₹2,87,962; Finance Sizes the rest and picks credit that lands before 21 Oct; Re-simulate Checks the plan keeps cash above the buffer
-10. **Ananya's gap closes** — ‑₹7.6L Low point if nothing changes, 24 Nov; ₹9L TReDS discounting at 9.4%, cost ₹16,387; ₹4.26L Low point after approval, above the ₹4.12L buffer
-11. **Cheapest credit first** — ₹16,387 TReDS discounting · 9.4% · 3 days; ₹55,248 PMMY Tarun loan · 10.25% · 21 days; ₹66,043 Bank overdraft · 11.5% · 14 days; ₹1,13,291 Fintech NBFC line · 19% · 2 days
+9. **The agent plans the fix** — Forecast Finds the low point of -₹7,62,344 on 24 Nov; Chase Queues reminders on the three best overdue invoices, about ₹2,87,962; Finance Picks the cheapest credit mix that lands before 21 Oct; Re-simulate Nets every repayment and checks cash stays above the buffer
+10. **Ananya's gap closes** — ‑₹7.6L Low point if nothing changes, 24 Nov; ₹15.2L ₹9.69L invoices discounted + ₹5.5L NBFC line; ₹4.22L Low point after approval, repayments counted
+11. **Cheapest all-in credit first** — ₹5,721 TReDS-style 15.59% · 3 days; ₹55,248 PMMY Tarun · 11.2% · 21 days; ₹66,043 Overdraft · 13.41% · 14 days; ₹1,13,291 NBFC line · 22.92% · 2 days
 12. **How it decides** — Guard, plan, check policy, wait for the owner, then log.
-13. **Honest forecast bands** — The shaded band is where cash really landed 80% of the time.
+13. **Honest forecast bands** — Calibrated to 80% on 26 past runs. Held out it covered 48–83%.
 14. **Backtesting fixed the forecast** — Ananya Textiles · 26% → 14.82% · -₹11.56L → -₹2.72L; Chai Point Cafe · 3.93% → 3.63% · -₹1.41L → -₹0.42L; PixelForge Studio · 7.89% → 8.68% · -₹3.10L → -₹0.53L
 15. **Built for India**
 16. **India rules built in** — MSME 45-day rule · s.43B(h) · Reminder explains the buyer's delayed deduction; TDS on receipts · Plans on net cash and asks for Form 16A; Statutory calendar · TDS 7th · GSTR-1 11th · PF 15th · GSTR-3B 20th; RBI Key Facts Statement · All-in APR shown and consent bound to it; Disputes · Disputed invoices never chased or paid
@@ -25,7 +25,7 @@
 21. **21 attacks and 21 blocks** — Prompt injection · 7 · Hinglish · Hindi · base64 · lookalike letters · No; Scams and social engineering · 2 · Bank details changed · owner already approved · No; Money movement · 5 · ₹6L split into three ₹2L payments · No; Duties and codes · 4 · Agent self-approval · code replay · No; LLM output and audit · 3 · Invented ₹3,21,450 saving · ₹1 audit edit · No
 22. **Words cannot move money** — Policy A deterministic engine decides, not the model; Limits Verified payees and hard rupee caps; Audit Every decision hash-chained per tenant
 23. **Why we win**
-24. **Proof** — 48/48 Test suites pass, with 128 SME tests; 21/21 Live attacks blocked and no money moved; 80% Forecast band coverage on all three SMEs
+24. **Proof** — 49/49 Test suites pass, with 147 SME tests; 21/21 Live attacks blocked and no money moved; ₹4.22L Plan low point with every repayment counted
 25. **Why it is different** — Chatbots Give advice. Cannot act or prove what they did.; Banking apps Hold the money. Do no forecasting or chasing for you.; OneGate SME Plans and acts inside owner-signed limits with an audit trail.
 26. **Next steps** — Now Working sandbox with cockpit, autopilot, red-team and evidence; Next Live LLM traces, passkeys and persistent audit storage; Then Account Aggregator consent plus TReDS and lender APIs; Later Pilot with Greater Noida SMEs
 27. **Team GateKeepers** — Tarrush Saxena Lead. Product, copilot design and pitch; Yogya Mittal Forecasting and financing logic; Utkarsh Gupta Backend, policy engine and security

@@ -1,7 +1,7 @@
 # OneGate SME: the agentic layer
 
 **AI as a financial participant, with authority that comes from code.**
-Version 1.2 · 14 Oct 2026 · Team GateKeepers · Topic E: SME Finance Copilot
+Version 1.2, updated for v1.9 · 18 Oct 2026 · Team GateKeepers · Topic E: SME Finance Copilot
 
 The first version of OneGate SME answered questions and proposed one action at a time. Version 1.2 makes the agent a participant: it plans several steps toward a goal, works on a schedule without being asked, and pays small recurring bills on its own inside a mandate the owner signed. None of that widens what language can do. The model chooses *which* tool to call. Policy, approvals, mandates and the audit chain decide *what happens*.
 
@@ -18,13 +18,16 @@ The first version of OneGate SME answered questions and proposed one action at a
 | 1 | `get_cash_forecast` | READ | Finds the pessimistic low point and the first buffer breach |
 | 2 | `list_overdue_receivables` | READ | Ranks debtors by risk-weighted value, with each customer's historical pay probability |
 | 3–5 | `propose_reminder` ×≤3 | EXECUTE (queued) | Picks the debtors whose expected recovery closes most of the gap, and queues reminders for approval |
-| 6 | `match_financing` | SUGGEST | Sizes the remaining gap (rounded up to ₹50,000) and matches products that disburse before the breach, ranked by total cost |
-| 7 | `propose_loan_application` | EXECUTE (queued) | Queues the cheapest eligible application for approval |
-| 8 | `simulate_plan` | READ | Re-runs the forecast with expected collections and the loan applied, and reports the low point before and after |
+| 6 | `match_financing` | SUGGEST | Sizes the remaining gap (rounded up to ₹50,000) and shows every product priced for it, with eligibility (disburses before the breach, enough not-yet-due invoices for discounting) |
+| — | (financing choice) | — | Re-simulates candidate mixes (TReDS-style discounting of the first *k* discountable invoices, plus at most one fast term top-up in ₹50,000 steps) **with repayments netted**, and keeps the cheapest that holds the buffer |
+| 7–8 | `propose_loan_application` ×≤2 | EXECUTE (queued) | Queues each chosen financing line for approval (discounting names the invoices it sells) |
+| 9 | `simulate_plan` | READ | Re-runs the forecast with expected collections, financing proceeds and every repayment inside the horizon, and reports the low point before and after |
 
-**Result on Ananya Textiles (sandbox, 12 Oct 2026):** gap ₹11,74,344 (first breach 21 Oct, low point 24 Nov); three reminders worth about ₹2,87,962 expected; ₹9,00,000 TReDS invoice discounting at 9.4% APR (est. total cost ₹16,387, 3-day disbursal); the low point moves from **-₹7,62,344 to ₹4,25,618** and stays above the ₹4,12,000 buffer.
+**Result on Ananya Textiles (sandbox, 12 Oct 2026, v1.9):** gap ₹11,74,344 (first breach 21 Oct, low point 24 Nov); three reminders worth about ₹2,87,962 expected; **TReDS-style discounting (sandbox)** of 4 not-yet-due invoices, face value ₹9,68,864 (about ₹9,62,706 lands on 15 Oct; the buyers repay the financier on the due dates, so those receipts no longer come to Ananya; cost ₹6,158; 9.4% rate, 15.59% all-in APR); and a ₹5,50,000 NBFC working-capital line (19% rate, 22.92% all-in APR, est. total cost ₹69,233 over 12 months; its first instalment of ₹50,686 on 14 Nov is netted). With every repayment counted, the low point moves from **-₹7,62,344 to ₹4,21,816** and stays above the ₹4,12,000 buffer. 9 tool calls, 5 approval cards.
 
-**Planning assumptions** are returned with every plan so the owner can challenge them: a reminder recovers 60% of the probability-weighted invoice value within 7 days; at most 3 reminders per plan; financing rounded up to ₹50,000. Loan repayments after the horizon are not yet modelled in the simulation.
+*Correction:* up to v1.8.1 this section said ₹9,00,000 of TReDS at "9.4% APR" (₹16,387) lifts the low to ₹4,25,618. That simulation netted no repayment and costed TReDS as a 3-month instalment loan; counting its first instalment (about ₹3,04,712, mid-Nov), the low would have been about ₹1,20,906, below the buffer.
+
+**Planning assumptions** are returned with every plan so the owner can challenge them: a reminder recovers 60% of the probability-weighted invoice value within 7 days; at most 3 reminders per plan; term financing in ₹50,000 steps. **Repayments are netted inside the 45-day horizon:** term lines land net of the processing fee and every instalment in the window goes out again; discounted invoices' receipts are removed (repaid by the buyer to the financier on the due date); a chased invoice's own forecast receipt is replaced by the reminder estimate. Instalments after day 45 are outside the runway by design and shown in the KFS.
 
 **Properties:** deterministic and reproducible; idempotent (re-planning on the same day returns the same approval cards instead of duplicates); nothing executes; every step is an audit entry `agent.tool.<name>`.
 
@@ -45,10 +48,10 @@ system: tools + rules  →  model: {"tool": "...", "args": {...}}  →  server r
 | Viewers can only use READ tools; at most 3 EXECUTE proposals per run | `runLLM()` |
 | EXECUTE tools only **queue** an action; approval is a separate owner-only API with amount re-type and a one-time code | `actions.propose()` / `decide()` |
 | Tool results are PII-redacted and truncated before they go back to the model; invoice notes are withheld | `redactPII`, `receivables()` |
-| **Grounding check:** every amount ≥ 1,000 in the final answer must match (within 1%) a number from a tool result or the user's message, or the answer is discarded | `groundingCheck()` |
+| **Grounding check:** every number of 1,000 or more in the final answer must match (within 1%) some number in a tool result or the user's message, or the answer is discarded (smaller amounts, percentages, dates and names are not checked) | `groundingCheck()` |
 | Any failure (timeout, bad JSON, step budget, ungrounded number) falls back to the deterministic path, logged as `agent.llm_fallback` with the reason | `copilot.respond()` |
 
-Without a key, the deterministic planner and intent router answer everything, so the demo needs no secrets. The guardrails are tested with a scripted fake model in `sme-04-agent.test.js`: grounded answer accepted, invented ₹98,76,543 rejected, `add_beneficiary` refused, injection blocked with **zero** model calls, API failure falls back.
+Without a key, the deterministic planner and intent router answer everything, so the demo needs no secrets. **Tool-calling has been tested only with a scripted mock model, never against a live LLM.** The guardrails are tested with that scripted fake model in `sme-04-agent.test.js`: grounded answer accepted, invented ₹98,76,543 rejected, `add_beneficiary` refused, injection blocked with **zero** model calls, API failure falls back.
 
 ## 3. Autopilot (`backend/sme/autopilot.js`)
 
@@ -99,7 +102,7 @@ Never shared: transactions, customer names, invoice notes, beneficiary accounts,
 Suppliers often offer a discount for paying early (sandbox terms: 1% if paid within 2 days on a 9-day bill, 1.5% if paid 18 days early). For each open bill with terms the agent:
 
 1. annualises the discount: `d / (1 - d) × 365 / days early` (1% for 7 days = **52.67%**, 1.5% for 18 days = **30.88%**)
-2. sets a hurdle: idle-cash yield (6.5%, sandbox liquid fund), or, when the forecast shows a gap, the cheapest eligible loan APR (9.4% for Ananya), so it never borrows to chase a discount
+2. sets a hurdle: idle-cash yield (6.5%, sandbox liquid fund), or, when the forecast shows a gap, the cheapest eligible financing rate (9.4% for Ananya, the TReDS-style rate), so it never borrows to chase a discount
 3. re-runs the pessimistic forecast with the outflow moved from the due date to the early date (smaller amount, earlier), **jointly with every other offer it takes** (highest return first), and refuses if cash dips below the safety buffer in between
 
 A worthwhile offer becomes a normal EXECUTE approval card for the **discounted** amount. The owner re-types that amount and enters a one-time code. `actions.propose` and the approval re-check both verify the amount and date match the supplier's terms, so a forged "discount" is denied (`discount_terms_mismatch`). On execution the bill is settled early at the discounted amount and the forecast moves the outflow.
@@ -107,7 +110,7 @@ A worthwhile offer becomes a normal EXECUTE approval card for the **discounted**
 | SME | Result |
 |---|---|
 | Chai Point | Both offers worth it: ₹851 + ₹384 = **₹1,235** saved, queued by the autopilot for approval |
-| PixelForge | Both worth it: ₹378 + ₹540 |
+| PixelForge | Both worth it: ₹378 + ₹540 (the evidence run took ₹540, after the mandate had already paid the CloudHost bill) |
 | Ananya | Both **held back**: paying ₹4,15,800 early breaks the ₹4,12,000 buffer on 14 Oct (hurdle 9.4% because a gap is coming) |
 
 ## 8. GST-aware planning (`backend/sme/gst.js`)
@@ -136,17 +139,17 @@ Every reason code the system produces (policy, mandates, step-up, discounts, gua
 
 The dashboard opens on what the agent did, not on a chat box. `GET /cockpit` is read-only (it writes nothing to the audit chain or the queue) and returns:
 
-- **Runway (next 45 days):** cash today, the low point if nothing changes, the plan waiting for the owner (reminders plus any loan application), and the low point if the owner approves it. The "after" figure comes from the same `simulate()` the planner uses, fed with the plan's actions: those waiting in the queue plus reminders and loan applications the owner already approved whose cash hasn't landed (v1.8.1; before, an approved reminder dropped out and the low point fell). It matches the planner's own output before and after approvals (tested); rejected actions drop out.
+- **Runway (next 45 days):** cash today, the low point if nothing changes, the plan waiting for the owner (reminders plus every financing line), and the low point if the owner approves it, with repayments inside the window netted (v1.9). The "after" figure comes from the same `simulate()` the planner uses, fed with the plan's actions: those waiting in the queue plus reminders and loan applications the owner already approved whose cash hasn't landed (v1.8.1; before, an approved reminder dropped out and the low point fell). It matches the planner's own output before and after approvals (tested); rejected actions drop out.
 - **Three lanes:** *paid under a mandate* (executed actions that carry a mandate id and receipt), *waiting for you* (pending approvals), and *blocked by policy* (held-back early payments, invoice notes that tried to instruct the AI, and the latest audited denials, each with its audit sequence number and a why-not card). Viewers don't see audited denials or the chain.
 - **Guardrails:** audit-chain status and head hash, numeric firewall, injection guard, and whether the planner is deterministic or LLM with a grounding check.
 
-UI changes: a role switcher (owner, accountant and viewer for Ananya) makes separation of duties visible, and a non-owner sees *Approve · owner only*. One-time codes appear on a simulated **owner's phone** panel instead of on the approval card. The chat is a side drawer opened from *Ask copilot*. The 8-step plan trace sits under *How the agent planned it*.
+UI changes: a role switcher (owner, accountant and viewer for Ananya) makes separation of duties visible, and a non-owner sees *Approve · owner only*. One-time codes appear on a simulated **owner's phone** panel instead of on the approval card. The chat is a side drawer opened from *Ask copilot*. The plan trace (9 steps for Ananya) sits under *How the agent planned it*, with the instalments and discounted invoices it netted.
 
 **Tamper drill** (`POST /audit/tamper-drill`, owner or accountant): copies the tenant's chain, adds ₹1 to one amount in the copy, and re-verifies. Verification fails at exactly that entry because its recomputed hash no longer matches the stored one. The live chain is never modified, and the drill itself is audited.
 
 ## 11. Forecast bands from past errors and the what-if stress test (`calibrate.js`, `whatif.js`)
 
-**Calibration.** The forecaster is re-run from every 3rd day between day 90 of the history (it needs 90 days of lookback) and 15 days before the sandbox date: 26 start dates and up to 45 days ahead each. The error at each horizon (actual minus base case) is collected in three buckets (1 to 15, 16 to 30 and 31 to 45 days). The band uses the finite-sample conformal quantiles at 10% and 90% (the ceil((n+1)q)-th error). Beyond 45 days the last band is widened by sqrt(h/45). On the calibration windows it covers 80.0% of outcomes for each SME (1,005 checks each). Limits: the windows overlap, so the errors are correlated, and this is one business's history, so it is an empirical band, not a guarantee.
+**Calibration.** The forecaster is re-run from every 3rd day between day 90 of the history (it needs 90 days of lookback) and 15 days before the sandbox date: 26 start dates and up to 45 days ahead each. The error at each horizon (actual minus base case) is collected in three buckets (1 to 15, 16 to 30 and 31 to 45 days). The band uses finite-sample conformal-style quantiles at 10% and 90% (the ceil((n+1)q)-th error). Beyond 45 days the last band is widened by sqrt(h/45). There is no held-out split, so the 80% coverage on those same 26 runs (1,005 checks per SME) holds by construction: **calibrated to 80% on 26 past runs, in-sample.** Held out (calibrate on the older 13 start dates, score the newer 13; `heldOutCoverage()`), the band covered **78.6% for Ananya, 47.9% for Chai Point and 83.3% for PixelForge**. Limits: the windows overlap, so the errors are correlated, and this is one business's history, so it is an empirical band, not a guarantee.
 
 **What it found, and the v1.8 fix.** In v1.5 the errors were mostly negative at 16 to 45 days, so the base case ran optimistic. On a 40-day backtest the model expected ₹26.2 lakh of receipts for Ananya against ₹12.0 lakh actual. The main cause was the run-rate for invoices not yet issued: it ramped in from day 1, but in this history no invoice is paid sooner than about 25 to 38 days after issue. Three changes:
 
@@ -154,7 +157,7 @@ UI changes: a role switcher (owner, accountant and viewer for Ananya) makes sepa
 2. An invoice already past its customer's usual pay date loses half its probability about every 7 days (was every 14), and what remains is spread over 2 to 6 weeks (was 1 to 3).
 3. The day-of-week sales shape is scaled to the last 28 days' level, so the seasonal trend isn't averaged away.
 
-| SME | 30-day MAPE before → after | Median 31 to 45-day error before → after |
+| SME | 30-day MAPE before → after (single 30-day holdout, 12 Sep–12 Oct; v1.8 was tuned with it visible) | Median 31 to 45-day error before → after |
 |---|---|---|
 | Ananya | 26% → 14.82% | -₹11,55,897 → -₹2,72,294 |
 | Chai Point | 3.93% → 3.63% | -₹1,40,910 → -₹42,121 |
@@ -162,7 +165,7 @@ UI changes: a role switcher (owner, accountant and viewer for Ananya) makes sepa
 
 On a 40-day backtest, Ananya's expected receipts went from ₹26.2 lakh to ₹16.1 lakh, against ₹12.0 lakh actual. PixelForge's MAPE is slightly worse, but its bias is far smaller.
 
-**Safety floor.** Every forecast now sets the pessimistic line to the lower of the scenario low and the calibrated band (`low_uses_calibrated_floor`, with the original kept as `scenario_low`), so mandates, early payments, buffer alerts and the planner all use the more cautious of the two. The calibration runs and the walk-forward backtest use the raw model. The headline changed: Ananya's gap is now ₹11,74,344, the plan borrows ₹9,00,000, and the low point moves from -₹7,62,344 to ₹4,25,618. Chai Point's and PixelForge's mandate payments and early-pay discounts are unchanged.
+**Safety floor.** Every forecast now sets the pessimistic line to the lower of the scenario low and the calibrated band (`low_uses_calibrated_floor`, with the original kept as `scenario_low`), so mandates, early payments, buffer alerts and the planner all use the more cautious of the two. The calibration runs and the single-holdout backtest use the raw model. The headline changed: Ananya's gap is now ₹11,74,344 (in v1.9, with repayments netted, the plan's low point is ₹4,21,816; see §1). Chai Point's and PixelForge's mandate payments and early-pay discounts are unchanged.
 
 **What-if.** `POST /whatif` re-runs the same forecaster with adjustments: the top N debtors pay D days later, sales change by X%, supplier costs change by Y%, and a one-off expense lands on a day. Inputs are clamped. It returns the low point before and after, the first buffer breach, the cash needed to hold the buffer, and the cheapest eligible financing for that amount. It writes nothing to the audit chain or the queue (tested).
 
@@ -171,14 +174,14 @@ On a 40-day backtest, Ananya's expected receipts went from ₹26.2 lakh to ₹16
 - **s.43B(h), Income-tax Act.** A buyer can deduct a payment to a Udyam-registered micro or small enterprise (a manufacturer or service provider; traders are excluded) only in the year it actually pays, if it pays after the MSMED Act s.15 limit (15 days, or up to 45 with a written agreement). It is a timing penalty for the buyer. Sandbox registrations: Ananya is a small trader (not covered), Chai Point is not registered, and PixelForge is a micro service firm with a 45-day agreement (covered). Reminders for PixelForge invoices past the limit add one sentence saying exactly this.
 - **TDS on receipts.** PixelForge's buyers deduct 10% under s.194J on the value before GST (CBDT Circular 23/2017), so receivables show cash in after TDS and reminders ask for Form 16A. Some buyers may use s.194C (2%) instead; the section is a per-business setting.
 - **Statutory calendar.** TDS deposit on the 7th (30 April for March), GSTR-1 on the 11th, PF and ESIC on the 15th, GSTR-3B on the 20th with the planner's amount and coverage status, and advance tax on 15 June, September, December and March, each with the consequence of paying late.
-- **Key Facts Statement.** Each product gets an RBI-format KFS: the all-in APR solved as the yearly rate that equates the amount received after fees with the instalments, the processing fee, penal charges (never compounded), the cooling-off period, the regulated entity, the grievance officer, direct-to-borrower disbursal and a SHA-256 hash. A loan action carries its KFS, and approval needs `kfs_ack` equal to that hash, checked before the one-time code is spent. A product that disburses through a third party is denied at proposal. Inside the cooling-off window the owner can exit (`POST /actions/:id/cooling-off-exit`), repaying principal plus interest for the days used, with no penalty.
+- **Key Facts Statement.** Each product gets an RBI-format KFS: the all-in APR (for instalment products, the yearly rate that equates the amount received after fees with the instalments; for TReDS-style discounting, interest plus fee over the cash received, annualised over the days to due, with no instalments and "repaid by the buyer on each invoice due date"), the processing fee, penal charges (never compounded), the cooling-off period, the regulated entity, the grievance officer, direct-to-borrower disbursal and a SHA-256 hash. A loan action carries its KFS, and approval needs `kfs_ack` equal to that hash, checked before the one-time code is spent. A product that disburses through a third party is denied at proposal. Inside the cooling-off window the owner can exit (`POST /actions/:id/cooling-off-exit`), repaying principal plus interest for the days used, with no penalty.
 - **Disputes.** `POST /disputes` (owner or accountant, audited) marks an invoice or bill disputed. A disputed invoice drops out of the chase list, the planner and the forecast, and a reminder for it is refused. A disputed bill can't be paid, not even under a mandate.
 
 ## 13. Red-team runner and guard hardening (`redteam.js`, `guard.js`)
 
-The input guard now checks several versions of each text: the text as written, the text with lookalike Cyrillic and Greek letters folded to Latin, a leetspeak-folded version, and decoded base64 and percent-encoded payloads. It adds patterns for claimed approval ("the owner already approved this"), role-play, Hinglish and Hindi (Devanagari). Normal owner questions in English and Hinglish stay unflagged (tested).
+The input guard now checks several versions of each text: the text as written, the text with lookalike Cyrillic and Greek letters folded to Latin, a leetspeak-folded version, and decoded base64 and percent-encoded payloads. It adds patterns for claimed approval ("the owner already approved this"), role-play, Hinglish and Hindi (Devanagari). Normal owner questions in English and Hinglish stay unflagged (tested). Hinglish support is in the **guard**; the intent router matches English keywords.
 
-A **structuring check** refuses a payment to a payee when payments to that payee that aren't tied to a real open bill would exceed the ₹5,00,000 single-payment limit within 72 hours, or when there would be three or more of them. Payments that each settle a real bill are unaffected.
+A **structuring check** refuses a payment to a payee when payments to that payee that aren't tied to a real open bill would exceed the ₹5,00,000 single-payment limit within 72 hours, or when there would be three or more of them. Payments against a real bill skip that check but, since v1.9, are **capped at the bill's amount** across every queued, approved and executed payment, and must go to the bill's own supplier.
 
 `POST /redteam` (owner or accountant) runs 21 attacks through the real modules and reports the layer that caught each one: the input guard, the untrusted-text guard, the payment-scam guard, the policy engine, the structuring check, discount integrity, separation of duties, step-up code and binding, the numeric grounding firewall, the tool registry, and the hash-chained audit. Anything an attack queued is rejected again, the run is audited, and it reports whether any money moved (none does; tested).
 
@@ -206,4 +209,4 @@ cd backend && npm install && npm run provision:demo && npm start
 # http://localhost:3000/sme.html
 ```
 
-Ananya owner → **Plan my cash gap** → approve the loan (the code arrives on the owner's phone panel). Switch *View as* to Accountant to see approval locked; press **Run tamper drill**. Chai Point owner → sign a mandate for FreshFarm Dairy → **Run autopilot now** (pays the bill, queues two early-pay discounts). Ananya → *Supplier discounts & GST* → **Why not?**. Optional: `SME_LLM_API_KEY=... SME_LLM_MODEL=... npm start` to switch the copilot to LLM tool-calling.
+Ananya owner → **Plan my cash gap** → approve a financing card (tick the KFS) (the code arrives on the owner's phone panel). Switch *View as* to Accountant to see approval locked; press **Run tamper drill**. Chai Point owner → sign a mandate for FreshFarm Dairy → **Run autopilot now** (pays the bill, queues two early-pay discounts). Ananya → *Supplier discounts & GST* → **Why not?**. Optional: `SME_LLM_API_KEY=... SME_LLM_MODEL=... npm start` to switch the copilot to LLM tool-calling.
