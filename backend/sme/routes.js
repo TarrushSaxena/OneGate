@@ -88,7 +88,7 @@ router.post('/:tid/financing/match', gate('recommend_financing'), (req, res) => 
   const m = matchFinancing(req.tenant, { ...req.body, receivables: receivables(req.tenant) });
   const { LOAN_PRODUCTS } = require('./data/sandbox');
   const india = require('./india');
-  m.options = m.options.map((o) => { const lp = LOAN_PRODUCTS.find((x) => x.id === o.product_id); const k = lp && m.requested_amount ? india.keyFactsStatement(lp, m.requested_amount, o.tenure_months) : null; return k ? { ...o, kfs: k } : o; });
+  m.options = m.options.map((o) => { const lp = LOAN_PRODUCTS.find((x) => x.id === o.product_id); const inv = lp && lp.type === 'invoice_financing' ? require('./financing').discountableInvoices(req.tenant, { disbursalDays: lp.max_days_to_disburse }).filter((x) => (o.invoices_to_discount || []).includes(x.invoice_id)) : null; const k = lp && m.requested_amount ? india.keyFactsStatement(lp, m.requested_amount, o.tenure_months || undefined, inv && inv.length ? { invoices: inv } : {}) : null; return k ? { ...o, kfs: k } : o; });
   audit.append(req.sme.tenant_id, { actor: req.smeActor, action: 'suggest.financing_match', tier: 'SUGGEST', decision: 'allow', metadata: { amount: m.requested_amount } });
   res.json(m);
 });

@@ -19,7 +19,8 @@
 const { getTenant, DAY, iso } = require('./data/sandbox');
 const { forecast } = require('./forecast');
 const { receivables, draftReminder } = require('./receivables');
-const { matchFinancing } = require('./financing');
+const { matchFinancing, scheduleFor, discountableInvoices, pickInvoices } = require('./financing');
+const { LOAN_PRODUCTS } = require('./data/sandbox');
 const { redactPII } = require('./guard');
 const { lenderShare } = require('./privacy');
 const discounting = require('./discounting');
@@ -79,8 +80,8 @@ function makeTools(tenantId, actor) {
       },
     },
     simulate_plan: {
-      tier: 'READ', desc: 'What-if: re-run the pessimistic forecast assuming some overdue invoices are chased and/or a loan is drawn. Returns the lowest point before and after.',
-      args: { chase_invoice_ids: 'array of invoice ids (optional)', borrow_amount: 'number INR (optional)', borrow_disbursal_days: 'number (optional, default 3)', horizon_days: 'number 7-90 (optional, default 90)' },
+      tier: 'READ', desc: 'What-if: re-run the pessimistic forecast assuming some overdue invoices are chased and/or financing is drawn. Repayments are netted: instalments inside the horizon, and for TReDS-style discounting the discounted invoices\' receipts go to the financier. Returns the lowest point before and after.',
+      args: { chase_invoice_ids: 'array of invoice ids (optional)', financing: 'array of {product_id, amount, invoice_ids?} (optional, at most 3)', horizon_days: 'number 7-90 (optional, default 90)' },
       run: (a = {}) => simulate(tenant, a),
     },
     draft_reminder: {
@@ -123,35 +124,66 @@ function makeTools(tenantId, actor) {
       },
     },
     propose_loan_application: {
-      tier: 'EXECUTE', desc: 'Queue a sandbox loan application for owner approval. Only derived, banded features are shared with the lender, never the ledger.',
-      args: { product_id: 'string (required)', amount: 'number INR (required)' },
-      run: ({ product_id, amount } = {}) => propose('submit_loan_application', { product_id: String(product_id || ''), amount: Number(amount) }),
+      tier: 'EXECUTE', desc: 'Queue a sandbox loan application for owner approval. For TReDS-style discounting, amount is the face value of the invoices discounted (invoice_ids optional; picked furthest-due first). Only derived, banded features are shared with the lender, never the ledger.',
+      args: { product_id: 'string (required)', amount: 'number INR (required)', invoice_ids: 'array of invoice ids (TReDS-style only, optional)' },
+      run: ({ product_id, amount, invoice_ids } = {}) => propose('submit_loan_application', { product_id: String(product_id || ''), amount: Number(amount), ...(Array.isArray(invoice_ids) ? { invoice_ids: invoice_ids.map(String).slice(0, 20) } : {}) }),
     },
   };
   return T;
 }
 
 // What-if simulation on the pessimistic path.
-function simulate(tenant, { chase_invoice_ids = [], borrow_amount = 0, borrow_disbursal_days = 3, horizon_days = 90 } = {}) {
-  const f = forecast(tenant, { horizon: Math.min(90, Math.max(7, Number(horizon_days) || 90)) });
+// Every financing line is netted the way it is actually repaid (v1.9):
+//   - term products: cash in on the disbursal date NET of the processing fee, and every
+//     monthly instalment that falls inside the horizon goes out again;
+//   - TReDS-style discounting: cash in = face value minus discount and fee, and the
+//     discounted invoices' own receipts are removed (the buyer pays the financier).
+// A chased invoice's own forecast receipt is replaced by the reminder estimate, so it
+// is never counted twice.
+function simulate(tenant, { chase_invoice_ids = [], financing = [], borrow_amount = 0, borrow_product_id = null, borrow_disbursal_days = 3, horizon_days = 90 } = {}) {
+  const horizon = Math.min(90, Math.max(7, Number(horizon_days) || 90));
+  const f = forecast(tenant, { horizon });
   const asOf = toMs(tenant.profile.as_of);
   const r = receivables(tenant);
-  const inflows = [];
+  const inflows = []; const movements = []; const exclude = [];
   for (const id of (Array.isArray(chase_invoice_ids) ? chase_invoice_ids : []).slice(0, 10)) {
     const inv = r.top_overdue.find((x) => x.invoice === id);
-    if (inv) inflows.push({ date: iso(asOf + ASSUMPTIONS.reminder_lag_days * DAY), amount: inv.amount * inv.customer_pay_probability * ASSUMPTIONS.reminder_recovery_rate, source: id });
+    if (inv) { exclude.push(id); inflows.push({ date: iso(asOf + ASSUMPTIONS.reminder_lag_days * DAY), amount: inv.amount * inv.customer_pay_probability * ASSUMPTIONS.reminder_recovery_rate, source: id }); }
   }
-  if (Number(borrow_amount) > 0) inflows.push({ date: iso(asOf + Math.max(1, Number(borrow_disbursal_days) || 3) * DAY), amount: Number(borrow_amount), source: 'loan' });
-  let cum = 0;
-  const after = f.series.map((p) => { cum = inflows.filter((x) => x.date <= p.date).reduce((a, x) => a + x.amount, 0); return { date: p.date, low: p.low + cum }; });
+  const lines = (Array.isArray(financing) ? financing : []).slice(0, 3).map((x) => ({ ...x }));
+  if (Number(borrow_amount) > 0) lines.push({ product_id: borrow_product_id, amount: Number(borrow_amount), disbursal_days: borrow_disbursal_days });
+  const schedules = []; let unmodelled = false;
+  for (const ln of lines) {
+    const sch = ln.product_id ? scheduleFor(tenant, ln) : null;
+    if (!sch) {
+      // No known product: count the cash in but flag that repayment is NOT modelled.
+      unmodelled = true;
+      movements.push({ date: iso(asOf + Math.max(1, Number(ln.disbursal_days) || 3) * DAY), amount: Number(ln.amount), kind: 'unspecified_borrowing', source: 'loan' });
+      continue;
+    }
+    schedules.push(sch);
+    exclude.push(...sch.exclude_invoices);
+    for (const m of sch.movements) movements.push({ ...m, source: sch.product_id });
+  }
+  const g = exclude.length ? forecast(tenant, { horizon, adjust: { exclude_invoices: exclude } }) : f;
+  const all = [...inflows.map((x) => ({ ...x, kind: 'reminder_recovery' })), ...movements];
+  const after = g.series.map((p) => ({ date: p.date, low: p.low + all.filter((x) => x.date <= p.date).reduce((a, x) => a + x.amount, 0) }));
   const min = (s) => s.reduce((a, b) => (b.low < a.low ? b : a), s[0]);
   const before = min(f.series); const aft = min(after);
   const breachAfter = after.find((p) => p.low < f.safety_buffer) || null;
+  const lastDay = f.series[f.series.length - 1].date;
+  const inH = (x) => x.date <= lastDay;
+  const lostReceipts = exclude.length ? Math.round(f.series[f.series.length - 1].low - g.series[g.series.length - 1].low) : 0;
   return {
     safety_buffer: f.safety_buffer,
     lowest_before: { date: before.date, low: Math.round(before.low) },
     lowest_after: { date: aft.date, low: Math.round(aft.low) },
-    expected_inflows: inflows.map((x) => ({ ...x, amount: Math.round(x.amount) })),
+    expected_inflows: all.filter((x) => x.amount > 0 && inH(x)).map((x) => ({ date: x.date, amount: Math.round(x.amount), source: x.source, kind: x.kind })),
+    repayments_in_horizon: movements.filter((x) => x.amount < 0 && inH(x)).map((x) => ({ date: x.date, amount: Math.round(-x.amount), source: x.source, kind: x.kind })),
+    discounted_invoices: schedules.flatMap((x) => x.settlement || []),
+    receipts_given_up_in_horizon: lostReceipts,
+    financing_lines: schedules.map((x) => ({ product_id: x.product_id, amount: Math.round(x.amount), disbursal_date: x.disbursal_date, cost: Math.round(x.cost), all_in_apr_pct: x.all_in_apr_pct, instalment: x.instalment ? Math.round(x.instalment) : undefined, avg_tenor_days: x.avg_tenor_days })),
+    repayment_modelled: !unmodelled,
     first_breach_after_plan: breachAfter ? breachAfter.date : null,
     assumptions: ASSUMPTIONS,
   };
@@ -171,6 +203,49 @@ function cardsFrom(trace) {
 }
 function cleanTrace(trace) {
   return trace.map((s) => { const o = { ...s.observation }; delete o._action; return { ...s, observation: o }; });
+}
+
+// Search the sandbox products for the cheapest financing that keeps the pessimistic path above
+// the buffer once repayments are netted. Candidates: TReDS-style discounting of the first k
+// discountable invoices (k = 0..n, furthest due first), optionally topped up by ONE fast term
+// product sized in steps of financing_round_to. At most two lines per plan.
+function chooseFinancing(tenant, { chaseIds, urgency, horizonDays, buffer, residual }) {
+  const step = ASSUMPTIONS.financing_round_to;
+  const p = tenant.profile;
+  const ok = (lp) => lp.max_days_to_disburse <= urgency && p.vintage_months >= lp.min_vintage_months && p.credit_score >= lp.min_credit_score && (lp.disbursal_route || 'direct_to_borrower_account') === 'direct_to_borrower_account';
+  const treds = LOAN_PRODUCTS.find((x) => x.type === 'invoice_financing');
+  const terms = LOAN_PRODUCTS.filter((x) => x.type !== 'invoice_financing' && ok(x));
+  const pool = treds && ok(treds) ? discountableInvoices(tenant, { exclude: chaseIds, disbursalDays: treds.max_days_to_disburse }) : [];
+  const sim = (lines) => simulate(tenant, { chase_invoice_ids: chaseIds, financing: lines, horizon_days: horizonDays });
+  const cost = (s) => s.financing_lines.reduce((a, x) => a + x.cost, 0);
+  const cands = [];
+  for (let k = 0; k <= pool.length; k++) {
+    const base = [];
+    if (k) {
+      const inv = pool.slice(0, k);
+      const face = Math.round(inv.reduce((a, x) => a + x.face, 0));
+      if (face < treds.min_amount || face > treds.max_amount) continue;
+      base.push({ product_id: treds.id, amount: face, invoice_ids: inv.map((x) => x.invoice_id) });
+      const s0 = sim(base);
+      cands.push({ lines: base, sim: s0, cost: cost(s0) });
+      if (!s0.first_breach_after_plan) continue;
+    }
+    const s0 = base.length ? cands[cands.length - 1].sim : sim([]);
+    const short = Math.max(0, buffer - s0.lowest_after.low);
+    for (const lp of terms) {
+      let amt = Math.max(lp.min_amount, Math.ceil((base.length ? short : residual) / step) * step);
+      for (let tries = 0; amt <= lp.max_amount && tries < 20; tries++, amt += step) {
+        const lines = [...base, { product_id: lp.id, amount: amt }];
+        const s = sim(lines);
+        cands.push({ lines, sim: s, cost: cost(s) });
+        if (!s.first_breach_after_plan) break;
+      }
+    }
+  }
+  if (!cands.length) return null;
+  const good = cands.filter((c) => !c.sim.first_breach_after_plan).sort((a, b) => a.cost - b.cost || b.sim.lowest_after.low - a.sim.lowest_after.low);
+  const best = good[0] || cands.sort((a, b) => b.sim.lowest_after.low - a.sim.lowest_after.low)[0];
+  return { lines: best.lines, keeps_buffer: !!good[0], candidates_checked: cands.length };
 }
 
 // ---------------- Deterministic multi-step planner ----------------
@@ -211,31 +286,50 @@ function planCashGap({ tenantId, actor, horizonDays = 45 }) {
   // 3. Queue the reminders (EXECUTE tier: owner approves each one).
   if (canPropose && daysToBreach >= 2) for (const c of chase) call('propose_reminder', { invoice_id: c.invoice_id });
 
-  // 4. Size the remaining gap and match financing that lands before the breach.
+  // 4. Size what is left and choose financing that lands before the breach. Every candidate is
+  //    checked by re-simulating with its repayments netted (instalments inside the horizon; for
+  //    TReDS-style discounting, the discounted invoices' receipts go to the financier). The
+  //    cheapest plan that keeps the pessimistic path above the buffer wins; if none can, the one
+  //    with the highest low point is proposed and the reply says it still breaches.
+  const chaseIds = chase.map((c) => c.invoice_id);
   const residual = Math.max(0, gap - (ASSUMPTIONS.reminder_lag_days < daysToBreach ? expected : 0));
-  let fin = null; let rec = null; let borrow = 0;
+  const urgency = Math.max(2, daysToBreach - 1);
+  let choice = null; let fin = null;
   if (residual > 0) {
-    borrow = Math.max(ASSUMPTIONS.financing_round_to, Math.ceil(residual / ASSUMPTIONS.financing_round_to) * ASSUMPTIONS.financing_round_to);
-    fin = call('match_financing', { amount: borrow, urgency_days: Math.max(2, daysToBreach - 1) });
-    rec = fin.options.find((o) => o.product_id === fin.recommendation?.product_id) || null;
-    if (rec && canPropose) call('propose_loan_application', { product_id: rec.product_id, amount: borrow });
+    choice = chooseFinancing(tenant, { chaseIds, urgency, horizonDays, buffer: f.safety_buffer, residual });
+    // The menu (every product, priced for the residual) is shown to the owner; the choice above is
+    // what survives the repayment-netted simulation.
+    fin = call('match_financing', { amount: Math.max(ASSUMPTIONS.financing_round_to, Math.ceil(residual / ASSUMPTIONS.financing_round_to) * ASSUMPTIONS.financing_round_to), urgency_days: urgency });
+    if (choice && canPropose) for (const l of choice.lines) call('propose_loan_application', { product_id: l.product_id, amount: l.amount, ...(l.invoice_ids ? { invoice_ids: l.invoice_ids } : {}) });
   }
 
-  // 5. Re-simulate with the plan applied.
-  const sim = call('simulate_plan', { chase_invoice_ids: chase.map((c) => c.invoice_id), borrow_amount: rec ? borrow : 0, borrow_disbursal_days: rec ? rec.disbursal_days : 3, horizon_days: horizonDays });
+  // 5. Re-simulate with the plan applied (the same simulation the cockpit runway shows).
+  const sim = call('simulate_plan', { chase_invoice_ids: chaseIds, financing: choice ? choice.lines : [], horizon_days: horizonDays });
 
+  const lineText = (l) => {
+    const p = LOAN_PRODUCTS.find((x) => x.id === l.product_id);
+    const s = sim.financing_lines.find((x) => x.product_id === l.product_id) || {};
+    if (p.type === 'invoice_financing') {
+      const net = (sim.expected_inflows.find((x) => x.source === l.product_id) || {}).amount;
+      return `discount ${l.invoice_ids.length} not-yet-due invoice${l.invoice_ids.length > 1 ? 's' : ''} (${l.invoice_ids.join(', ')}, face value ${fmt(l.amount)}) through TReDS-style discounting (sandbox): about ${fmt(net)} lands on ${s.disbursal_date} and the buyers pay the financier on the due dates, so those receipts no longer come to you (cost ${fmt(s.cost)}; ${p.apr}% rate, ${s.all_in_apr_pct}% all-in APR)`;
+    }
+    const rep = sim.repayments_in_horizon.filter((x) => x.source === l.product_id);
+    return `borrow ${fmt(l.amount)} from ${p.lender} (${p.apr}% rate, ${s.all_in_apr_pct}% all-in APR, est. total cost ${fmt(s.cost)} over 12 months, funds in ${p.max_days_to_disburse} days)${rep.length ? `; its first instalment of ${fmt(rep[0].amount)} on ${rep[0].date} is already counted` : ''}`;
+  };
   const parts = [`Your pessimistic forecast dips to ${fmt(worst.low)} on ${worst.date}, ${fmt(gap)} below your ${fmt(f.safety_buffer)} buffer (first breach ${breach.date}).`];
-  if (chase.length) parts.push(`Step 1: chase ${chase.map((c) => `${c.invoice_id} (${c.customer})`).join(', ')}, which should bring in about ${fmt(expected)}${ASSUMPTIONS.reminder_lag_days < daysToBreach ? '' : ', though too late for the first dip'}.`);
-  if (rec) parts.push(`Step 2: cover the remaining ${fmt(residual)} with ${fmt(borrow)} from ${rec.lender} at ${rec.apr_pct}% APR (est. total cost ${fmt(rec.est_total_cost)}, funds in ${rec.disbursal_days} days).`);
+  let n = 1;
+  if (chase.length) parts.push(`Step ${n++}: chase ${chase.map((c) => `${c.invoice_id} (${c.customer})`).join(', ')}, which should bring in about ${fmt(expected)}${ASSUMPTIONS.reminder_lag_days < daysToBreach ? '' : ', though too late for the first dip'}.`);
+  if (choice) for (const l of choice.lines) parts.push(`Step ${n++}: ${lineText(l)}.`);
   else if (residual > 0) parts.push(`No sandbox product can fund the remaining ${fmt(residual)} in time; consider asking your largest supplier for a short extension.`);
-  parts.push(sim.first_breach_after_plan ? `With the plan, the low point improves to ${fmt(sim.lowest_after.low)}, but cash still touches the buffer on ${sim.first_breach_after_plan}.` : `With the plan, the low point becomes ${fmt(sim.lowest_after.low)} and stays above the buffer.`);
+  parts.push(sim.first_breach_after_plan ? `With the plan, and with repayments counted, the low point improves to ${fmt(sim.lowest_after.low)} on ${sim.lowest_after.date}, but cash still falls below the buffer on ${sim.first_breach_after_plan}.` : `With the plan, and with repayments counted, the low point becomes ${fmt(sim.lowest_after.low)} on ${sim.lowest_after.date} and stays above the buffer.`);
   const cards = cardsFrom(trace);
   if (cards.length) parts.push(`${cards.length} action${cards.length > 1 ? 's are' : ' is'} waiting for owner approval.`);
+  const rec = choice ? choice.lines.map((l) => { const p = LOAN_PRODUCTS.find((x) => x.id === l.product_id); const s = sim.financing_lines.find((x) => x.product_id === l.product_id) || {}; return { product_id: l.product_id, lender: p.lender, amount: l.amount, rate_pct: p.apr, apr_pct: p.apr, all_in_apr_pct: s.all_in_apr_pct, est_total_cost: s.cost, invoice_ids: l.invoice_ids }; }) : [];
 
   return {
     goal: 'cover_cash_gap', planner: 'deterministic', gap, breach_date: breach.date, days_to_breach: daysToBreach,
     steps: cleanTrace(trace), cards,
-    result: { chase, expected_recovery: expected, residual, financing: rec ? { product_id: rec.product_id, lender: rec.lender, amount: borrow, apr_pct: rec.apr_pct, est_total_cost: rec.est_total_cost, lender_sees: lenderShare(tenant).fields_shared } : null, simulation: sim, assumptions: ASSUMPTIONS },
+    result: { chase, expected_recovery: expected, residual, financing: rec.length ? { lines: rec, amount: rec.reduce((a, l) => a + l.amount, 0), est_total_cost: Math.round(rec.reduce((a, l) => a + (l.est_total_cost || 0), 0)), lender_sees: lenderShare(tenant).fields_shared } : null, simulation: sim, assumptions: ASSUMPTIONS },
     reply: parts.join(' '),
   };
 }

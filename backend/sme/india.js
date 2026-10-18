@@ -110,16 +110,33 @@ function allInApr(amount, ratePct, months, feePct) {
   return { apr_pct: round2(((lo + hi) / 2) * 1200), emi: round2(emi), total_repayable: round2(emi * months) };
 }
 
-function keyFactsStatement(product, amount, tenure) {
+function keyFactsStatement(product, amount, tenure, opts = {}) {
   const t = KFS_TERMS[product.id] || { regulated_entity: 'Regulated entity (sandbox)', cooling_off_days: 3, penal_charge: 'not compounded' };
-  const months = tenure || (product.tenure_months.includes(12) ? 12 : product.tenure_months[product.tenure_months.length - 1]);
-  const fee = round2((amount * product.processing_fee_pct) / 100);
-  const a = allInApr(amount, product.apr, months, product.processing_fee_pct);
+  let terms;
+  if (product.type === 'invoice_financing') {
+    // TReDS-style discounting: no instalments. The financier pays face value minus interest
+    // for the days to each due date and a fee; the buyer repays the financier on the due date.
+    const fin = require('./financing');
+    const inv = Array.isArray(opts.invoices) && opts.invoices.length ? opts.invoices : [{ invoice_id: null, face: amount, tenor_days: opts.tenor_days || 30 }];
+    const pr = fin.priceDiscount(product, inv);
+    const scale = pr.face ? amount / pr.face : 1;
+    terms = {
+      amount, tenure_months: null, tenor_days: pr.avg_tenor_days, interest_rate_pct: product.apr,
+      discount_interest: round2(pr.interest * scale), processing_fee: round2(pr.fee * scale),
+      apr_all_in_pct: pr.all_in_apr_pct, instalment: null, total_repayable: round2(amount),
+      repaid_by: 'the buyer, to the financier, on each invoice due date',
+      invoices: inv.filter((x) => x.invoice_id).map((x) => ({ invoice_id: x.invoice_id, due: x.due, face: x.face })),
+      net_disbursed: round2(pr.net_received * scale),
+    };
+  } else {
+    const months = tenure || (product.tenure_months.includes(12) ? 12 : product.tenure_months[product.tenure_months.length - 1]);
+    const fee = round2((amount * product.processing_fee_pct) / 100);
+    const a = allInApr(amount, product.apr, months, product.processing_fee_pct);
+    terms = { amount, tenure_months: months, interest_rate_pct: product.apr, processing_fee: fee, apr_all_in_pct: a.apr_pct, instalment: a.emi, total_repayable: a.total_repayable, net_disbursed: round2(amount - fee) };
+  }
   const body = {
     product_id: product.id, lender: product.lender, regulated_entity: t.regulated_entity,
-    amount, tenure_months: months, interest_rate_pct: product.apr, processing_fee: fee,
-    apr_all_in_pct: a.apr_pct, instalment: a.emi, total_repayable: a.total_repayable,
-    net_disbursed: round2(amount - fee),
+    ...terms,
     penal_charges: t.penal_charge,
     cooling_off_days: t.cooling_off_days,
     cooling_off_rule: `You can exit within ${t.cooling_off_days} day(s) by repaying the principal and interest for the days used, with no penalty.`,

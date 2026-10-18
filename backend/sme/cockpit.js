@@ -9,7 +9,7 @@
 // ============================================================
 const { forecast } = require('./forecast');
 const { receivables } = require('./receivables');
-const { matchFinancing } = require('./financing');
+const { LOAN_PRODUCTS } = require('./data/sandbox');
 const actions = require('./actions');
 const audit = require('./auditChain');
 const autopilot = require('./autopilot');
@@ -52,22 +52,23 @@ function planFromPending(tenant, pend, all) {
     chase.push(id);
     if (a.status === 'executed') remSent += 1; else remWaiting += 1;
   }
+  // Every financing line in the plan (waiting or submitted), one per product, each with its
+  // repayments netted by the simulation (instalments; for TReDS-style, the discounted receipts).
   const loans = acts.filter((a) => a.type === 'submit_loan_application');
-  const loan = loans.find((a) => a.status === 'executed') || loans.find((a) => a.status === 'pending_approval');
-  let borrow = 0; let days = 3;
-  if (loan) {
-    borrow = Number(loan.params.amount) || 0;
-    try {
-      const m = matchFinancing(tenant, { amount: borrow, urgency_days: 30, receivables: receivables(tenant) });
-      const p = m.options.find((o) => o.product_id === loan.params.product_id);
-      if (p && p.disbursal_days) days = p.disbursal_days;
-    } catch (_) { /* keep default */ }
-  }
-  const sim = agent.simulate(tenant, { chase_invoice_ids: chase, borrow_amount: borrow, borrow_disbursal_days: days, horizon_days: 45 });
+  const byProduct = new Map();
+  for (const a of loans) { const cur = byProduct.get(a.params.product_id); if (!cur || (a.status === 'executed' && cur.status !== 'executed')) byProduct.set(a.params.product_id, a); }
+  const lines = [...byProduct.values()];
+  const financing = lines.map((a) => ({ product_id: a.params.product_id, amount: Number(a.params.amount) || 0, ...(Array.isArray(a.params.invoice_ids) && a.params.invoice_ids.length ? { invoice_ids: a.params.invoice_ids } : {}) }));
+  const borrow = financing.reduce((x, l) => x + l.amount, 0);
+  const days = lines.length ? Math.min(...lines.map((a) => (LOAN_PRODUCTS.find((x) => x.id === a.params.product_id) || { max_days_to_disburse: 3 }).max_days_to_disburse)) : 3;
+  const loanStatus = !lines.length ? null : (lines.some((a) => a.status === 'pending_approval') ? 'waiting' : 'submitted');
+  const sim = agent.simulate(tenant, { chase_invoice_ids: chase, financing, horizon_days: 45 });
   return {
     chase_invoice_ids: chase, borrow_amount: borrow, borrow_disbursal_days: days,
     reminders_waiting: remWaiting, reminders_sent: remSent,
-    loan_status: loan ? (loan.status === 'executed' ? 'submitted' : 'waiting') : null,
+    loan_status: loanStatus,
+    loans_waiting: lines.filter((a) => a.status === 'pending_approval').length,
+    financing_requested: financing,
     ...sim,
   };
 }
@@ -119,7 +120,10 @@ function cockpit(tenant, sme) {
         reminders_sent: plan.reminders_sent,
         borrow_amount: plan.borrow_amount,
         loan_status: plan.loan_status,
-        waiting: plan.reminders_waiting + (plan.loan_status === 'waiting' ? 1 : 0),
+        waiting: plan.reminders_waiting + plan.loans_waiting,
+        financing_lines: plan.financing_lines,
+        repayments_in_horizon: plan.repayments_in_horizon,
+        discounted_invoices: plan.discounted_invoices,
         lowest_after: plan.lowest_after,
         still_breaches_on: plan.first_breach_after_plan,
         expected_inflows: plan.expected_inflows,

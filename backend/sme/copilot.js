@@ -138,7 +138,9 @@ function handle({ tenantId, actor, message }) {
     const m = matchFinancing(tenant, { amount, urgency_days: /urgent|this week|asap/i.test(text) ? 7 : 30, receivables: r });
     const rec = m.options.find((o) => o.product_id === m.recommendation?.product_id);
     out.reply = rec
-      ? `For ${fmt(amount)}, the cheapest eligible option is ${rec.lender}: ${rec.apr_pct}% APR, about ${fmt(rec.est_monthly_payment)}/month over ${rec.tenure_months} months, est. total cost ${fmt(rec.est_total_cost)}. ${m.options.filter((o) => o.eligible).length} options qualify. Applying needs your approval.`
+      ? (rec.tenure_months
+        ? `For ${fmt(amount)}, the cheapest eligible option is ${rec.lender}: ${rec.apr_pct}% rate (${rec.all_in_apr_pct}% all-in APR), about ${fmt(rec.est_monthly_payment)}/month over ${rec.tenure_months} months, est. total cost ${fmt(rec.est_total_cost)}. ${m.options.filter((o) => o.eligible).length} options qualify. Applying needs your approval.`
+        : `For ${fmt(amount)}, the cheapest eligible option is ${rec.lender}: sell not-yet-due invoices (${rec.invoices_to_discount.join(', ')}) at a ${rec.apr_pct}% rate (${rec.all_in_apr_pct}% all-in APR, about ${rec.tenor_days} days to due), est. cost ${fmt(rec.est_total_cost)}. Your buyers pay the financier on the due dates, so those receipts no longer come to you. ${m.options.filter((o) => o.eligible).length} options qualify. Applying needs your approval.`)
       : `None of the sandbox products fit ${fmt(amount)} right now: ${m.options[0].blockers.join('; ')}.`;
     out.data = { financing: m };
     if (rec) out.cards.push({ type: 'suggestion', label: 'Apply (needs owner approval)', propose: { type: 'submit_loan_application', params: { product_id: rec.product_id, amount } } });

@@ -82,6 +82,9 @@ function forecast(tenant, opts = {}) {
   const supplierF = 1 + (Number(adj.supplier_cost_change_pct) || 0) / 100;
   const delayed = adj.delay_customers || {}; // customer -> extra days late
   const extraOut = Array.isArray(adj.extra_outflows) ? adj.extra_outflows : [];
+  // Invoices whose cash will not reach this account (sold to a TReDS-style financier, or
+  // modelled separately by a plan, e.g. a chased invoice): their expected receipt is removed.
+  const excluded = new Set(Array.isArray(adj.exclude_invoices) ? adj.exclude_invoices : []);
   const asOfMs = opts.asOf ? toMs(opts.asOf) : toMs(tenant.profile.as_of);
   const start = balanceAt(tenant.transactions, asOfMs, tenant.profile.opening_balance);
   const base = baseline(tenant.transactions, asOfMs);
@@ -108,6 +111,7 @@ function forecast(tenant, opts = {}) {
     }
     if (delayed[i.customer]) expMs += Number(delayed[i.customer]) * DAY;
     if (i.dispute) p = 0; // disputed: not counted until settled
+    if (excluded.has(i.id)) p = 0;
     return { invoice: i.id, customer: i.customer, amount: i.amount, expected_date: iso(expMs), probability: round2(p) };
   });
   // Scheduled (approved, not yet settled) bills still leave the account on their due date.
@@ -187,7 +191,12 @@ function forecast(tenant, opts = {}) {
   };
 }
 
-/** Walk-forward backtest: forecast from asOf-N days and compare base case to actual balances. */
+/**
+ * Single-holdout backtest: forecast once from asOf-N days and compare the base case to actual
+ * balances over those N days (one window, not walk-forward; the walk-forward runs are the band
+ * calibration). scenario_band_coverage_pct scores the raw low/high scenario band, NOT the
+ * calibrated band.
+ */
 function backtest(tenant, days = 30) {
   const endMs = toMs(tenant.profile.as_of);
   const cutoff = iso(endMs - days * DAY);
@@ -199,7 +208,7 @@ function backtest(tenant, days = 30) {
     if (Math.abs(actual) > 1) errs.push(Math.abs(p.base - actual) / Math.abs(actual));
     if (actual >= p.low - 1 && actual <= p.high + 1) inBand += 1;
   }
-  return { tenant_id: tenant.profile.id, cutoff, days, mape_pct: round2(mean(errs) * 100), band_coverage_pct: round2((inBand / f.series.length) * 100) };
+  return { tenant_id: tenant.profile.id, cutoff, days, method: 'single holdout window', mape_pct: round2(mean(errs) * 100), scenario_band_coverage_pct: round2((inBand / f.series.length) * 100) };
 }
 
 module.exports = { forecast, backtest, customerStats, balanceAt, collectionLag };

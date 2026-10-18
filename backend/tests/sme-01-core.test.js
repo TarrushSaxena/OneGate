@@ -29,7 +29,7 @@ test('forecast returns 30/60/90 horizons with low <= base <= high', () => {
 test('forecast backtest reports MAPE and band coverage', () => {
   const b = backtest(getTenant('sme_chai_point_cafe'));
   assert.ok(Number.isFinite(b.mape_pct) && b.mape_pct < 25, `MAPE ${b.mape_pct}`);
-  assert.ok(b.band_coverage_pct >= 0 && b.band_coverage_pct <= 100);
+  assert.ok(b.scenario_band_coverage_pct >= 0 && b.scenario_band_coverage_pct <= 100);
 });
 
 test('receivables ranks overdue invoices and flags the planted injection note', () => {

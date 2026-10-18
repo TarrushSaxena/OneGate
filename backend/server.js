@@ -83,7 +83,13 @@ console.log('[ML] Primary: DistilBERT Sequence Classifier (13 classes) + Multi-I
 console.log('[ML] Fallback: Naive Bayes Multinomial Classifier (Laplace smoothing)');
 console.log('[ML] TF-IDF KB engine ready (' + allKBArticles.length + ' articles)');
 console.log('[ML] Sentiment/NLP pipeline ready');
-console.log('[LLM] zenmux API wired — model: z-ai/glm-4.7-flash-free');
+// Only claim an LLM when a key is actually configured (a clean clone has none).
+const LLM_KEY_SET = !!(process.env.ZENMUX_API_KEY || process.env.SME_LLM_API_KEY);
+const JWT_SOURCE = require('./auth/config').JWT_SECRET_SOURCE;
+console.log(LLM_KEY_SET
+  ? '[LLM] API key configured: helpdesk answers and SME tool-calling may use the model (OpenAI-compatible API)'
+  : '[LLM] not configured (no ZENMUX_API_KEY / SME_LLM_API_KEY): SME copilot uses the deterministic planner; helpdesk uses KB answers');
+if (JWT_SOURCE !== 'env') console.log('[AUTH] JWT_SECRET not set: using a random secret for this process (sessions reset on restart)');
 checkHealth().then(h => {
   if (h) console.log(`[ML] DistilBERT microservice connected (device: ${h.device}, status: ${h.status})`);
   else console.log('[ML] DistilBERT microservice not detected at 127.0.0.1:8000 (Naive Bayes fallback active)');
@@ -1587,7 +1593,7 @@ app.get('/api/ml/stats', async (req, res) => {
       multiIntentClassifier: 'DistilBERT Binary Classifier (SINGLE / MULTI)',
       multiIntentThreshold: 0.60,
       ragEngine: 'TF-IDF + Cosine Similarity',
-      llmProvider: 'zenmux.ai (dots-studio/dots3-note-prev)',
+      llmProvider: LLM_KEY_SET ? 'zenmux.ai (dots-studio/dots3-note-prev)' : 'not configured (no API key)',
       microserviceStatus: mlHealth ? 'connected' : 'offline (fallback active)',
     },
     primaryClassifier: {
@@ -1648,6 +1654,7 @@ app.get('/api/ml/stats', async (req, res) => {
     },
     llm: {
       provider: 'zenmux.ai',
+      configured: LLM_KEY_SET,
       model: 'dots-studio/dots3-note-prev',
       fallbacks: ['z-ai/glm-4.7-flash-free', 'z-ai/glm-4.6v-flash-free'],
       role: 'Grounded answer generation via RAG — only used when KB retrieval confidence >= medium',
@@ -1793,7 +1800,7 @@ if (require.main === module) {
     console.log('   ✅ Weighted multi-factor assignment engine');
     console.log('   ✅ SLA timer with auto-escalation (5s tick)');
     console.log('   ✅ Socket.IO real-time events');
-    console.log('   ✅ zenmux LLM — dots-studio/dots3-note-prev');
+    console.log(LLM_KEY_SET ? '   ✅ LLM key configured (OpenAI-compatible API)' : '   ⚪ LLM not configured: deterministic planner (set SME_LLM_API_KEY to enable tool-calling)');
     console.log('\n🏢 Enterprise Features:');
     console.log(`   ✅ Company Directory — ${directoryProfiles.length} profiles`);
     console.log(`   ✅ Meeting Rooms — ${meetingRooms.length} rooms`);
