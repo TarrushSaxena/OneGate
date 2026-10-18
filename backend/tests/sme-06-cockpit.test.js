@@ -156,7 +156,7 @@ test('runway: approving a plan reminder keeps it in the plan as done, and the pr
   const before = cockpit(getTenant(A), OWNER_A).runway.plan;
   assert.strictEqual(before.reminders, 3);
   assert.strictEqual(before.reminders_sent, 0);
-  assert.strictEqual(before.lowest_after.low, 425618, 'v1.8 headline low point');
+  assert.strictEqual(before.lowest_after.low, 421816, 'v1.9 headline low point (repayments netted)');
   assert.strictEqual(before.still_breaches_on, null);
   // Approve the biggest reminder (the one that made the low drop to about 2.6 lakh in the demo).
   const rems = actions.list(A).filter((a) => a.type === 'send_reminder');
@@ -166,7 +166,7 @@ test('runway: approving a plan reminder keeps it in the plan as done, and the pr
   assert.strictEqual(after.reminders, 3, 'executed reminder still counts');
   assert.strictEqual(after.reminders_sent, 1);
   assert.strictEqual(after.reminders_waiting, 2);
-  assert.strictEqual(after.waiting, 3, '2 reminders + the loan still wait for the owner');
+  assert.strictEqual(after.waiting, 4, '2 reminders + the 2 financing lines still wait for the owner');
   assert.strictEqual(after.lowest_after.low, before.lowest_after.low, 'low point after approval is unchanged');
   assert.strictEqual(after.still_breaches_on, null);
 });
@@ -185,7 +185,7 @@ test('runway: approving every plan action leaves nothing waiting and the low poi
     assert.strictEqual(p.waiting, 0);
     assert.strictEqual(p.reminders_sent, 3);
     assert.strictEqual(p.loan_status, 'submitted');
-    assert.strictEqual(p.borrow_amount, 900000);
+    assert.strictEqual(p.borrow_amount, 1518864, 'TReDS-style face value 9,68,864 + NBFC 5,50,000');
     assert.strictEqual(p.lowest_after.low, want);
   } finally { delete process.env.SME_STEPUP; }
 });

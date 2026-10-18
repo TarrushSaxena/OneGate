@@ -9,6 +9,8 @@ Please report vulnerabilities privately to the maintainers (GitHub: @TarrushSaxe
 - Demo accounts have no password in the repo; see `DEMO_ACCESS.md`.
 
 ## Incident note (October 2026)
-An LLM provider API key was committed in early history (`d5a76f9`, `f105965`) and removed from the working tree in `bc6f811`. The key has to be revoked at the provider, and history rewritten, before the repository is considered clean. Removing a file from the latest commit does not remove it from history.
+An LLM provider (Zenmux) API key was committed in early history (`d5a76f9`, `f105965`). It was removed from `.env`, `.env.example` and `backend/services/llm.js` in `f105965` and from the README in `018f489`; the current tree contains no key. **Status: key pending revocation by its owner at the provider.** History has not been rewritten (that would change every commit hash the submission cites); removing a file from the latest commit does not remove it from history, so until revocation the key should be treated as exposed.
+
+The development JWT secret is no longer a constant: outside production an unset `JWT_SECRET` gets a random secret per process.
 
 See `docs/SECURITY_SELF_ASSESSMENT.md` for the threat model and controls of the SME Finance Copilot.

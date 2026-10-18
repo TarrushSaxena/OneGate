@@ -80,11 +80,11 @@
   async function loadForecast() {
     FC = await api(`/api/sme/${TID}/forecast?horizon=90`);
     const f = FC; const c = f.calibration;
-    $('#fcMeta').textContent = `as of ${f.as_of} · backtest MAPE ${f.backtest.mape_pct}% (30d)`;
+    $('#fcMeta').textContent = `as of ${f.as_of} · MAPE ${f.backtest.mape_pct}% (single 30-day holdout)`;
     if (c) {
       const b30 = c.buckets[1];
       const bias = b30.median_error;
-      $('#calNote').innerHTML = `The shaded outline is where the balance actually landed ${c.target_coverage_pct}% of the time when we re-ran this forecast from ${c.origins} past start dates (${b30.n} checks at 16 to 30 days). `
+      $('#calNote').innerHTML = `The shaded outline is calibrated so the balance landed inside it ${c.target_coverage_pct}% of the time when we re-ran this forecast from ${c.origins} past start dates (in-sample, ${b30.n} checks at 16 to 30 days)${c.held_out ? `; on the newer ${c.held_out.test_origins} start dates, held out from calibration, it covered ${c.held_out.coverage_pct}%` : ''}. `
         + `At 16 to 30 days the typical miss is ${inr(Math.abs(bias))} ${bias < 0 ? 'too optimistic' : 'too cautious'}. `
         + `Every safety check (mandates, early payments, the planner) uses the lower of the scenario low and this band: at 30 days that is ${inr(c.day30.safety_low ?? Math.min(c.day30.scenario_low, c.day30.calibrated_low))}.`;
     }
@@ -137,7 +137,7 @@
       $('#wiOut').className = `wi-out ${breaks ? 'bad' : 'good'}`;
       $('#wiOut').innerHTML = `Lowest point in 45 days: <b>${inr(a.lowest.low)}</b> on ${esc(a.lowest.date)} (now ${inr(b.lowest.low)}, ${WI.change_in_low < 0 ? 'down' : 'up'} ${inr(Math.abs(WI.change_in_low))}).`
         + (WI.delayed_customers.length ? ` Delayed: ${esc(WI.delayed_customers.join(', '))}.` : '')
-        + (breaks ? ` Cash breaks the ${inr(WI.safety_buffer)} buffer on ${esc(a.first_breach)}. You'd need about <b>${inr(WI.cash_needed_to_hold_buffer)}</b>${fin && !fin.none_eligible ? `; the cheapest eligible option is ${esc(fin.lender)} at ${fin.apr_pct}% APR (about ${inr(fin.est_total_cost)} in cost, ${fin.disbursal_days} days to fund).` : '; no eligible financing covers it.'}` : ` It stays above the ${inr(WI.safety_buffer)} buffer.`)
+        + (breaks ? ` Cash breaks the ${inr(WI.safety_buffer)} buffer on ${esc(a.first_breach)}. You'd need about <b>${inr(WI.cash_needed_to_hold_buffer)}</b>${fin && !fin.none_eligible ? `; the cheapest eligible option is ${esc(fin.lender)} at ${fin.apr_pct}% rate${fin.all_in_apr_pct ? ` (${fin.all_in_apr_pct}% all-in APR)` : ''} (about ${inr(fin.est_total_cost)} in cost, ${fin.disbursal_days} days to fund).` : '; no eligible financing covers it.'}` : ` It stays above the ${inr(WI.safety_buffer)} buffer.`)
         + ' <span class="muted">Nothing is queued.</span>';
     } catch (err) { refuse(err); }
   }
@@ -166,7 +166,7 @@
   const typed = {};       // "c:<id>" / "o:<id>" -> what the owner typed (survives a re-render)
   const typedVal = (k) => (typed[k] ? ` value="${esc(typed[k])}"` : '');
   document.addEventListener('change', (e) => { const k = e.target.closest && e.target.closest('[data-kfs]'); if (k) kfsTicked[k.dataset.kfs] = k.checked; });
-  const kfsHtml = (k) => `<dl class="share kfsdl"><dt>Lender</dt><dd>${esc(k.regulated_entity)}</dd><dt>Amount</dt><dd>${inr(k.amount)} for ${k.tenure_months} months</dd><dt>Interest rate</dt><dd>${k.interest_rate_pct}%</dd><dt>Processing fee</dt><dd>${inr(k.processing_fee)}</dd><dt>All-in APR</dt><dd><b>${k.apr_all_in_pct}%</b></dd><dt>Instalment</dt><dd>${inr(k.instalment)}</dd><dt>Total repayable</dt><dd>${inr(k.total_repayable)}</dd><dt>You receive</dt><dd>${inr(k.net_disbursed)}, straight to your account</dd><dt>Penal charges</dt><dd>${esc(k.penal_charges)}</dd><dt>Cooling-off</dt><dd>${esc(k.cooling_off_rule)}</dd><dt>Grievances</dt><dd>${esc(k.grievance_officer)}</dd></dl><div class="muted">${esc(k.basis)} KFS ${esc(k.hash.slice(0, 12))}…</div>`;
+  const kfsHtml = (k) => `<dl class="share kfsdl"><dt>Lender</dt><dd>${esc(k.regulated_entity)}</dd>${k.tenure_months ? `<dt>Amount</dt><dd>${inr(k.amount)} for ${k.tenure_months} months</dd>` : `<dt>Invoices sold</dt><dd>${inr(k.amount)} face value${k.invoices && k.invoices.length ? ` (${k.invoices.map((x) => esc(x.invoice_id)).join(', ')})` : ''}, about ${k.tenor_days} days to due</dd>`}<dt>Interest rate</dt><dd>${k.interest_rate_pct}%</dd>${k.discount_interest != null ? `<dt>Discount interest</dt><dd>${inr(k.discount_interest)}</dd>` : ''}<dt>Processing fee</dt><dd>${inr(k.processing_fee)}</dd><dt>All-in APR</dt><dd><b>${k.apr_all_in_pct}%</b></dd>${k.instalment ? `<dt>Instalment</dt><dd>${inr(k.instalment)}</dd><dt>Total repayable</dt><dd>${inr(k.total_repayable)}</dd>` : `<dt>Repaid by</dt><dd>${esc(k.repaid_by || 'the buyer on the due date')}: ${inr(k.total_repayable)}; no instalments from you, and those invoices' cash no longer comes to you</dd>`}<dt>You receive</dt><dd>${inr(k.net_disbursed)}, straight to your account</dd><dt>Penal charges</dt><dd>${esc(k.penal_charges)}</dd><dt>Cooling-off</dt><dd>${esc(k.cooling_off_rule)}</dd><dt>Grievances</dt><dd>${esc(k.grievance_officer)}</dd></dl><div class="muted">${esc(k.basis)} KFS ${esc(k.hash.slice(0, 12))}…</div>`;
   async function loadApprovals() {
     const { actions } = await api(`/api/sme/${TID}/actions`);
     const owner = ME.sme_role === 'owner';
@@ -227,8 +227,8 @@
     if (s.tool === 'find_early_pay_discounts') return `${(o.offers || []).filter((x) => x.worth_it).length} worth taking · saves ${inr(o.total_savings || 0)}`;
     if (s.tool === 'get_cash_forecast') return `today ${inr(o.balance_today)} · lowest ${inr(o.lowest_point?.low)} on ${o.lowest_point?.date} · buffer ${inr(o.safety_buffer)}`;
     if (s.tool === 'list_overdue_receivables') return `${inr(o.total_overdue)} overdue · top: ${(o.invoices || []).slice(0, 3).map((i) => i.invoice_id).join(', ')}`;
-    if (s.tool === 'match_financing') { const r = (o.options || []).find((x) => x.product_id === o.recommendation?.product_id); return r ? `best: ${r.lender} · ${r.apr_pct}% APR · total cost ${inr(r.est_total_cost)}` : 'no eligible product'; }
-    if (s.tool === 'simulate_plan') return `low point ${inr(o.lowest_before?.low)} → ${inr(o.lowest_after?.low)}${o.first_breach_after_plan ? ` · still touches buffer ${o.first_breach_after_plan}` : ' · stays above buffer'}`;
+    if (s.tool === 'match_financing') { const r = (o.options || []).find((x) => x.product_id === o.recommendation?.product_id); return r ? `cheapest for ${inr(o.requested_amount)}: ${r.lender} · ${r.apr_pct}% rate${r.all_in_apr_pct ? `, ${r.all_in_apr_pct}% all-in APR` : ''} · cost ${inr(r.est_total_cost)}` : 'no eligible product'; }
+    if (s.tool === 'simulate_plan') return `low point ${inr(o.lowest_before?.low)} → ${inr(o.lowest_after?.low)} with repayments netted${(o.repayments_in_horizon || []).length ? ` (${o.repayments_in_horizon.map((x) => `${inr(x.amount)} instalment ${x.date}`).join(', ')})` : ''}${(o.discounted_invoices || []).length ? ` · ${o.discounted_invoices.length} discounted invoices now paid to the financier` : ''}${o.first_breach_after_plan ? ` · still touches buffer ${o.first_breach_after_plan}` : ' · stays above buffer'}`;
     if (o.status === 'pending_approval') return `queued for owner: ${o.summary}${o.duplicate ? ' (already queued)' : ''}`;
     if (o.status && o.status !== 'pending_approval' && o.action_id) return `already ${o.status.replace(/_/g, ' ')}: ${o.summary}`;
     if (o.status === 'denied_by_policy') return `denied: ${(o.why_not?.length ? o.why_not : o.reasons || []).join('; ')}`;
@@ -337,7 +337,7 @@
     if (ME.sme_role === 'viewer') { $('#finBody').innerHTML = '<tr><td colspan="5" class="muted">Viewers can’t run financing matches.</td></tr>'; return; }
     const m = await api(`/api/sme/${TID}/financing/match`, { method: 'POST', body: { amount: Number($('#finAmt').value), urgency_days: Number($('#finDays').value) } });
     window.__fin = m; $('#kfsBox').innerHTML = '';
-    $('#finBody').innerHTML = m.options.map((o, i) => `<tr><td>${esc(o.lender)}${m.recommendation?.product_id === o.product_id ? ' <span class="risk l">best</span>' : ''}${o.kfs ? ` <button class="linkish" data-kfsi="${i}">KFS</button>` : ''}</td><td class="r">${o.apr_pct}%</td><td class="r">${o.kfs ? `${o.kfs.apr_all_in_pct}%` : ''}</td><td class="r">${inr(o.est_monthly_payment)}</td><td class="r">${inr(o.est_total_cost)}</td><td>${o.eligible ? '<span class="ok">eligible</span>' : `<span class="no">${esc(o.blockers[0])}</span>`}</td></tr>`).join('');
+    $('#finBody').innerHTML = m.options.map((o, i) => `<tr><td>${esc(o.lender)}${m.recommendation?.product_id === o.product_id ? ' <span class="risk l">best</span>' : ''}${o.kfs ? ` <button class="linkish" data-kfsi="${i}">KFS</button>` : ''}</td><td class="r">${o.apr_pct}%</td><td class="r">${o.kfs ? `${o.kfs.apr_all_in_pct}%` : ''}</td><td class="r">${o.tenure_months ? inr(o.est_monthly_payment) : '<span class="muted" title="Repaid by the buyer on each invoice due date">buyer pays</span>'}</td><td class="r">${inr(o.est_total_cost)}</td><td>${o.eligible ? '<span class="ok">eligible</span>' : `<span class="no">${esc(o.blockers[0])}</span>`}</td></tr>`).join('');
   }
   $('#fin').onsubmit = runFin;
   $('#finBody').onclick = (e) => { const b = e.target.closest('[data-kfsi]'); if (!b || !window.__fin) return; const o = window.__fin.options[Number(b.dataset.kfsi)]; $('#kfsBox').innerHTML = `<div class="card"><div class="t">Key Facts Statement · ${esc(o.lender)}</div>${kfsHtml(o.kfs)}</div>`; };
@@ -403,13 +403,14 @@
     const fixed = !p.still_breaches_on;
     const queued = p.reminders || p.borrow_amount;
     // Approved reminders / a submitted loan stay in the plan as "done"; only the rest is waiting.
-    const waiting = p.waiting ?? (p.reminders + (p.borrow_amount ? 1 : 0));
-    const done = (p.reminders_sent || 0) + (p.loan_status === 'submitted' ? 1 : 0);
+    const nLines = (p.financing_lines || []).length || (p.borrow_amount ? 1 : 0);
+    const waiting = p.waiting ?? (p.reminders + nLines);
+    const done = (p.reminders_sent || 0) + Math.max(0, nLines - (p.loans_waiting ?? (p.loan_status === 'waiting' ? nLines : 0)));
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
     $('#heroTitle').textContent = !breach ? `Cash stays above your ${inr(r.safety_buffer)} buffer`
       : queued ? (fixed ? (waiting ? `Approve ${done ? `${plural(waiting, 'more action')}` : plural(waiting, 'action')} and the cash gap closes` : 'Plan approved: cash stays above the buffer') : 'The plan helps, but cash still dips below the buffer')
       : `Cash dips below your buffer on ${r.first_breach}`;
-    const planVal = queued ? [p.reminders ? plural(p.reminders, 'reminder') : '', p.borrow_amount ? `${inr(p.borrow_amount)} loan` : ''].filter(Boolean).join(' + ') : (breach ? 'Nothing queued yet' : 'Nothing needed');
+    const planVal = queued ? [p.reminders ? plural(p.reminders, 'reminder') : '', ...((p.financing_lines || []).length ? p.financing_lines.map((l) => (l.avg_tenor_days != null ? `${inr(l.amount)} of invoices discounted` : `${inr(l.amount)} loan`)) : [p.borrow_amount ? `${inr(p.borrow_amount)} loan` : ''])].filter(Boolean).join(' + ') : (breach ? 'Nothing queued yet' : 'Nothing needed');
     const planSub = queued ? (done ? `${done} done · ${waiting ? `${waiting} waiting for your approval` : 'nothing left to approve'}` : 'each needs your approval') : (breach ? 'press “Plan my cash gap”' : 'autopilot keeps watching');
     const step = (cls, label, val, sub) => `<div class="rw ${cls}"><div class="l">${label}</div><div class="v">${val}</div><div class="s">${sub}</div></div>`;
     $('#runway').innerHTML = step('', 'Cash today', inr(r.cash_today), `as of ${esc(c.as_of)}`)
@@ -418,7 +419,7 @@
       + '<div class="arrow">→</div>'
       + step('plan', done ? 'Your plan' : 'Plan waiting for you', planVal, planSub)
       + '<div class="arrow">→</div>'
-      + step(queued ? (fixed ? 'good' : 'warn') : 'muted', waiting || !queued ? 'Lowest point if you approve' : 'Lowest point with the plan', queued ? inr(p.lowest_after.low) : '—', queued ? (fixed ? 'stays above the buffer' : `still below buffer on ${esc(p.still_breaches_on)}`) : '');
+      + step(queued ? (fixed ? 'good' : 'warn') : 'muted', waiting || !queued ? 'Lowest point if you approve' : 'Lowest point with the plan', queued ? inr(p.lowest_after.low) : '—', queued ? (fixed ? 'stays above the buffer, repayments counted' : `still below buffer on ${esc(p.still_breaches_on)}`) : '');
     const ap = c.autopilot;
     $('#apPill').hidden = false; $('#apPill').className = `appill ${ap.paused ? 'paused' : 'on'}`;
     $('#apPill').textContent = ap.paused ? 'Autopilot paused' : 'Autopilot on';

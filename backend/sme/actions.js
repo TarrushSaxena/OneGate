@@ -34,6 +34,17 @@ function forecastAfterPayment(tenant, amount, billId) {
   return breach ? { breach: true, date: breach.date } : { breach: false };
 }
 
+// Everything already committed against one bill: payments waiting for approval, approved or
+// executed (incl. under a mandate). Used to cap bill-backed payments at the bill's open amount.
+function committedToBill(tenantId, billId, exceptId) {
+  if (!billId) return 0;
+  const seen = new Set();
+  return [...pending.values(), ...executed]
+    .filter((a) => a.tenant_id === tenantId && a.type === 'schedule_payment' && a.params.bill_id === billId && a.id !== exceptId && ['pending_approval', 'executed'].includes(a.status))
+    .filter((a) => (seen.has(a.id) ? false : seen.add(a.id)))
+    .reduce((s, a) => s + Number(a.params.amount || 0), 0);
+}
+
 const SPLIT_WINDOW_MS = 72 * 3600 * 1000;
 function splitCheck(tenantId, tenant, params) {
   const billed = (p) => p.bill_id && tenant.payables.some((b) => b.id === p.bill_id);
@@ -48,6 +59,28 @@ function splitCheck(tenantId, tenant, params) {
   return null;
 }
 
+// TReDS-style discounting sells specific invoices. If the caller named none, pick not-yet-due
+// invoices (furthest due first) whose face value covers the amount; policy then validates them.
+function withDiscountInvoices(tenant, params) {
+  const { LOAN_PRODUCTS } = require('./data/sandbox');
+  const lp = LOAN_PRODUCTS.find((x) => x.id === params.product_id);
+  if (!lp || lp.type !== 'invoice_financing' || (Array.isArray(params.invoice_ids) && params.invoice_ids.length)) return params;
+  const pk = require('./financing').pickInvoices(tenant, Number(params.amount) || 0, { disbursalDays: lp.max_days_to_disburse });
+  return pk.face >= Number(params.amount) ? { ...params, invoice_ids: pk.picked.map((x) => x.invoice_id) } : { ...params, invoice_ids: [] };
+}
+
+function kfsFor(tenant, params) {
+  const { LOAN_PRODUCTS } = require('./data/sandbox');
+  const lp = LOAN_PRODUCTS.find((x) => x.id === params.product_id);
+  if (!lp) return undefined;
+  const opts = {};
+  if (lp.type === 'invoice_financing') {
+    const pool = require('./financing').discountableInvoices(tenant, { disbursalDays: lp.max_days_to_disburse });
+    opts.invoices = pool.filter((x) => (params.invoice_ids || []).includes(x.invoice_id));
+  }
+  return require('./india').keyFactsStatement(lp, Number(params.amount) || 0, undefined, opts);
+}
+
 function summarize(type, params, tenant) {
   if (type === 'schedule_payment') {
     const ben = tenant.beneficiaries.find((b) => b.id === params.beneficiary_id);
@@ -56,7 +89,10 @@ function summarize(type, params, tenant) {
     return base;
   }
   if (type === 'send_reminder') return `Email payment reminder for ${params.invoice_id}`;
-  if (type === 'submit_loan_application') return `Submit sandbox loan application: ${params.product_id} for ${tenant.profile.currency} ${Number(params.amount || 0).toLocaleString('en-IN')}`;
+  if (type === 'submit_loan_application') {
+    if (Array.isArray(params.invoice_ids) && params.invoice_ids.length) return `Submit sandbox TReDS-style discounting: ${params.invoice_ids.length} invoice(s) (${params.invoice_ids.join(', ')}), face value ${tenant.profile.currency} ${Number(params.amount || 0).toLocaleString('en-IN')}`;
+    return `Submit sandbox loan application: ${params.product_id} for ${tenant.profile.currency} ${Number(params.amount || 0).toLocaleString('en-IN')}`;
+  }
   return type;
 }
 
@@ -65,7 +101,8 @@ function propose({ tenantId, actor, type, params = {}, idempotencyKey, source = 
   if (idempotencyKey && byIdem.has(`${tenantId}:${idempotencyKey}`)) {
     return { duplicate: true, action: pending.get(byIdem.get(`${tenantId}:${idempotencyKey}`)) };
   }
-  const ctx = { sme_role: actor.sme_role, params, tenant, paidToday: paidToday(tenantId) };
+  if (type === 'submit_loan_application') params = withDiscountInvoices(tenant, params);
+  const ctx = { sme_role: actor.sme_role, params, tenant, paidToday: paidToday(tenantId), committedToBill: type === 'schedule_payment' ? committedToBill(tenantId, params.bill_id) : 0 };
   if (type === 'schedule_payment' && Number(params.amount) > 0) ctx.forecastAfter = forecastAfterPayment(tenant, Number(params.amount), params.bill_id);
   let verdict = policy.evaluate(type, ctx);
   // Structuring check: payments to one payee that aren't tied to a real open bill
@@ -88,7 +125,7 @@ function propose({ tenantId, actor, type, params = {}, idempotencyKey, source = 
     proposed_by: { id: actor.id, sme_role: actor.sme_role, source },
     created_at: new Date().toISOString(), expires_at: new Date(Date.now() + policy.LIMITS.approval_ttl_ms).toISOString(),
     preview: type === 'send_reminder' ? draftReminder(tenant, params.invoice_id) : undefined,
-    kfs: type === 'submit_loan_application' ? (() => { const lp = require('./data/sandbox').LOAN_PRODUCTS.find((x) => x.id === params.product_id); return lp ? require('./india').keyFactsStatement(lp, Number(params.amount) || 0) : undefined; })() : undefined,
+    kfs: type === 'submit_loan_application' ? kfsFor(tenant, params) : undefined,
     needs_step_up: stepUpEnabled() && policy.needsStepUp(type),
   };
   pending.set(action.id, action);
@@ -132,7 +169,7 @@ function decide({ tenantId, actor, actionId, approve, confirmAmount, reason, otp
   }
   // Re-check policy at execution time (limits may have changed since proposal).
   const tenant = getTenant(tenantId);
-  let recheck = policy.evaluate(a.type, { sme_role: actor.sme_role, params: a.params, tenant, paidToday: paidToday(tenantId) });
+  let recheck = policy.evaluate(a.type, { sme_role: actor.sme_role, params: a.params, tenant, paidToday: paidToday(tenantId), committedToBill: a.type === 'schedule_payment' ? committedToBill(tenantId, a.params.bill_id, a.id) : 0, recheckOfActionId: a.id });
   if (recheck.decision !== 'deny' && a.type === 'schedule_payment' && a.params.early_pay && !require('./discounting').validEarlyPay(tenant, a.params)) recheck = { decision: 'deny', reasons: ['discount_terms_mismatch'] };
   if (recheck.decision === 'deny') {
     a.status = 'blocked';
@@ -183,7 +220,7 @@ function execute(a, tenant) {
  */
 function executeUnderMandate({ tenantId, actor, type, params, mandate }) {
   const tenant = getTenant(tenantId);
-  const verdict = policy.evaluate(type, { sme_role: actor.sme_role, params, tenant, paidToday: paidToday(tenantId) });
+  const verdict = policy.evaluate(type, { sme_role: actor.sme_role, params, tenant, paidToday: paidToday(tenantId), committedToBill: type === 'schedule_payment' ? committedToBill(tenantId, params.bill_id) : 0 });
   if (verdict.decision === 'deny') {
     audit.append(tenantId, { actor, action: `mandate_execute_blocked.${type}`, tier: verdict.tier, decision: 'deny', target: mandate.id, metadata: { reasons: verdict.reasons } });
     return { blocked: true, reasons: verdict.reasons };
@@ -224,4 +261,4 @@ function exitCoolingOff({ tenantId, actor, actionId }) {
   return { action: a };
 }
 
-module.exports = { exitCoolingOff, propose, list, get, decide, executeUnderMandate, paidToday, forecastAfterPayment, stepUpEnabled, resetForTests, _executed: executed };
+module.exports = { committedToBill, exitCoolingOff, propose, list, get, decide, executeUnderMandate, paidToday, forecastAfterPayment, stepUpEnabled, resetForTests, _executed: executed };

@@ -1,12 +1,17 @@
 // PS18 Authentication & Security Configuration
 const path = require('path');
+const crypto = require('crypto');
 
 const isProd = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
 
+// Outside production, an unset JWT_SECRET gets a fresh random secret at every start, so no
+// published default can be used to forge session tokens (sessions simply reset on restart).
+// Set JWT_SECRET to keep sessions across restarts. Production refuses to start without one.
+const JWT_SECRET_SOURCE = process.env.JWT_SECRET ? 'env' : 'random_per_process';
 const JWT_SECRET = process.env.JWT_SECRET || (isProd
   ? (() => { throw new Error('JWT_SECRET environment variable is strictly required in production (min 32 chars)'); })()
-  : 'ps18-development-secret-key-minimum-32-chars-long!');
+  : crypto.randomBytes(48).toString('base64url'));
 
 if (isProd && JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET must be at least 32 characters in production');
@@ -38,6 +43,7 @@ module.exports = {
   isProd,
   isTest,
   JWT_SECRET,
+  JWT_SECRET_SOURCE,
   BCRYPT_ROUNDS,
   LOCKOUT_MAX_ATTEMPTS,
   LOCKOUT_WINDOW_MS,

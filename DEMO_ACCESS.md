@@ -21,6 +21,7 @@ Never commit the password you choose. Use a different value for every deployment
 |---|---|---|---|
 | SME Owner · Ananya Textiles | `owner.ananya@company.com` | owner | read, draft, propose, **approve** |
 | SME Accountant · Ananya Textiles | `accounts.ananya@company.com` | accountant | read, draft, propose (cannot approve) |
+| SME Viewer · Ananya Textiles | `viewer.ananya@company.com` | viewer | read only |
 | SME Owner · Chai Point Cafe | `owner.chai@company.com` | owner | full, own tenant only |
 | SME Owner · PixelForge Studio | `owner.pixelforge@company.com` | owner | full, own tenant only |
 | SME Viewer · PixelForge Studio | `viewer.pixelforge@company.com` | viewer | read only |
